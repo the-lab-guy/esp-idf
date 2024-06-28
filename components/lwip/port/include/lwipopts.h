@@ -470,6 +470,10 @@ static inline uint32_t timeout_from_offered(uint32_t lease, uint32_t min)
  */
 #define LWIP_DNS                        1
 
+/** The maximum number of IP addresses per host
+ */
+#define DNS_MAX_HOST_IP                 CONFIG_LWIP_DNS_MAX_HOST_IP
+
 /** The maximum of DNS servers
  */
 #define DNS_MAX_SERVERS                 CONFIG_LWIP_DNS_MAX_SERVERS
@@ -1103,7 +1107,7 @@ static inline uint32_t timeout_from_offered(uint32_t lease, uint32_t min)
 /**
  * PPP_MAXIDLEFLAG: Max Xmit idle time (in ms) before resend flag char.
  * TODO: If PPP_MAXIDLEFLAG > 0 and next package is send during PPP_MAXIDLEFLAG time,
- *       then 0x7E is not added at the begining of PPP package but 0x7E termination
+ *       then 0x7E is not added at the beginning of PPP package but 0x7E termination
  *       is always at the end. This behaviour brokes PPP dial with GSM (PPPoS).
  *       The PPP package should always start and end with 0x7E.
  */
@@ -1520,6 +1524,18 @@ static inline uint32_t timeout_from_offered(uint32_t lease, uint32_t min)
 #define SNTP_SET_SYSTEM_TIME_US(sec, us)  (sntp_set_system_time(sec, us))
 #define SNTP_GET_SYSTEM_TIME(sec, us)     (sntp_get_system_time(&(sec), &(us)))
 
+/**
+ * Configuring SNTP startup delay
+ */
+#ifdef CONFIG_LWIP_SNTP_STARTUP_DELAY
+#define SNTP_STARTUP_DELAY 1
+#ifdef CONFIG_LWIP_SNTP_MAXIMUM_STARTUP_DELAY
+#define SNTP_STARTUP_DELAY_FUNC     (LWIP_RAND() % CONFIG_LWIP_SNTP_MAXIMUM_STARTUP_DELAY)
+#endif /* CONFIG_LWIP_SNTP_MAXIMUM_STARTUP_DELAY */
+#else
+#define SNTP_STARTUP_DELAY 0
+#endif /* SNTP_STARTUP_DELAY */
+
 /*
    ---------------------------------------
    --------- ESP specific options --------
@@ -1576,7 +1592,7 @@ static inline uint32_t timeout_from_offered(uint32_t lease, uint32_t min)
 #define ESP_LWIP                        1
 #define ESP_LWIP_ARP                    1
 #define ESP_PER_SOC_TCP_WND             0
-#define ESP_THREAD_SAFE                 1
+#define ESP_THREAD_SAFE                 1       /* Not used (to be removed in v6.x) */
 #define ESP_THREAD_SAFE_DEBUG           LWIP_DBG_OFF
 #define ESP_DHCP                        1
 #define ESP_DNS                         1
@@ -1614,11 +1630,9 @@ static inline uint32_t timeout_from_offered(uint32_t lease, uint32_t min)
 
 
 #if LWIP_NETCONN_SEM_PER_THREAD
-#if ESP_THREAD_SAFE
 #define LWIP_NETCONN_THREAD_SEM_GET() sys_thread_sem_get()
 #define LWIP_NETCONN_THREAD_SEM_ALLOC() sys_thread_sem_init()
 #define LWIP_NETCONN_THREAD_SEM_FREE() sys_thread_sem_deinit()
-#endif
 #endif
 
 /**

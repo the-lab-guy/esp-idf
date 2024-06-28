@@ -10,9 +10,14 @@ from typing import Tuple
 
 import pexpect
 import pytest
-from common_test_methods import get_env_config_variable
-from common_test_methods import get_host_ip4_by_dest_ip
 from pytest_embedded import Dut
+
+try:
+    from common_test_methods import get_env_config_variable, get_host_ip4_by_dest_ip
+except ModuleNotFoundError:
+    idf_path = os.environ['IDF_PATH']
+    sys.path.insert(0, idf_path + '/tools/ci/python_packages')
+    from common_test_methods import get_env_config_variable, get_host_ip4_by_dest_ip
 
 server_cert = '-----BEGIN CERTIFICATE-----\n' \
               'MIIDWDCCAkACCQCbF4+gVh/MLjANBgkqhkiG9w0BAQsFADBuMQswCQYDVQQGEwJJ\n'\
@@ -82,9 +87,10 @@ def start_https_server(ota_image_dir: str, server_ip: str, server_port: int, ser
 
     httpd = http.server.HTTPServer((server_ip, server_port), http.server.SimpleHTTPRequestHandler)
 
-    httpd.socket = ssl.wrap_socket(httpd.socket,
-                                   keyfile=key_file,
-                                   certfile=server_file, server_side=True)
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ssl_context.load_cert_chain(certfile=server_file, keyfile=key_file)
+
+    httpd.socket = ssl_context.wrap_socket(httpd.socket, server_side=True)
     httpd.serve_forever()
 
 

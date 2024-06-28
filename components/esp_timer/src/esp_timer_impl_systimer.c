@@ -40,7 +40,7 @@ static const char *TAG = "esp_timer_systimer";
 
 /* Interrupt handle returned by the interrupt allocator */
 #ifdef CONFIG_ESP_TIMER_ISR_AFFINITY_NO_AFFINITY
-#define ISR_HANDLERS (portNUM_PROCESSORS)
+#define ISR_HANDLERS (CONFIG_FREERTOS_NUMBER_OF_CORES)
 #else
 #define ISR_HANDLERS (1)
 #endif
@@ -179,6 +179,11 @@ esp_err_t esp_timer_impl_early_init(void)
     systimer_hal_enable_counter(&systimer_hal, SYSTIMER_COUNTER_ESPTIMER);
     systimer_hal_select_alarm_mode(&systimer_hal, SYSTIMER_ALARM_ESPTIMER, SYSTIMER_ALARM_MODE_ONESHOT);
     systimer_hal_connect_alarm_counter(&systimer_hal, SYSTIMER_ALARM_ESPTIMER, SYSTIMER_COUNTER_ESPTIMER);
+
+    for (unsigned cpuid = 0; cpuid < SOC_CPU_CORES_NUM; ++cpuid) {
+        bool can_stall = (cpuid < portNUM_PROCESSORS);
+        systimer_hal_counter_can_stall_by_cpu(&systimer_hal, SYSTIMER_COUNTER_ESPTIMER, cpuid, can_stall);
+    }
 
     return ESP_OK;
 }

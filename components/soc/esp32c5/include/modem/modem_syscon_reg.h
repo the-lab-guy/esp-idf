@@ -1,19 +1,53 @@
 /*
- * SPDX-FileCopyrightText: 2017-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef _SOC_MODEM_SYSCON_REG_H_
-#define _SOC_MODEM_SYSCON_REG_H_
+#pragma once
 
-
+#include <stdint.h>
+#include "modem/reg_base.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "reg_base.h"
-
 #define MODEM_SYSCON_TEST_CONF_REG          (DR_REG_MODEM_SYSCON_BASE + 0x0)
+/* MODEM_SYSCON_MODEM_MEM_MODE_FORCE : R/W ;bitpos:[8] ;default: 1'b1 ; */
+/*description: .*/
+#define MODEM_SYSCON_MODEM_MEM_MODE_FORCE    (BIT(8))
+#define MODEM_SYSCON_MODEM_MEM_MODE_FORCE_M  (BIT(8))
+#define MODEM_SYSCON_MODEM_MEM_MODE_FORCE_V  0x1
+#define MODEM_SYSCON_MODEM_MEM_MODE_FORCE_S  8
+/* MODEM_SYSCON_FPGA_DEBUG_CLK10 : R/W ;bitpos:[7] ;default: 1'b0 ; */
+/*description: .*/
+#define MODEM_SYSCON_FPGA_DEBUG_CLK10    (BIT(7))
+#define MODEM_SYSCON_FPGA_DEBUG_CLK10_M  (BIT(7))
+#define MODEM_SYSCON_FPGA_DEBUG_CLK10_V  0x1
+#define MODEM_SYSCON_FPGA_DEBUG_CLK10_S  7
+/* MODEM_SYSCON_FPGA_DEBUG_CLK20 : R/W ;bitpos:[6] ;default: 1'b0 ; */
+/*description: .*/
+#define MODEM_SYSCON_FPGA_DEBUG_CLK20    (BIT(6))
+#define MODEM_SYSCON_FPGA_DEBUG_CLK20_M  (BIT(6))
+#define MODEM_SYSCON_FPGA_DEBUG_CLK20_V  0x1
+#define MODEM_SYSCON_FPGA_DEBUG_CLK20_S  6
+/* MODEM_SYSCON_FPGA_DEBUG_CLK40 : R/W ;bitpos:[5] ;default: 1'b0 ; */
+/*description: .*/
+#define MODEM_SYSCON_FPGA_DEBUG_CLK40    (BIT(5))
+#define MODEM_SYSCON_FPGA_DEBUG_CLK40_M  (BIT(5))
+#define MODEM_SYSCON_FPGA_DEBUG_CLK40_V  0x1
+#define MODEM_SYSCON_FPGA_DEBUG_CLK40_S  5
+/* MODEM_SYSCON_FPGA_DEBUG_CLK80 : R/W ;bitpos:[4] ;default: 1'b0 ; */
+/*description: .*/
+#define MODEM_SYSCON_FPGA_DEBUG_CLK80    (BIT(4))
+#define MODEM_SYSCON_FPGA_DEBUG_CLK80_M  (BIT(4))
+#define MODEM_SYSCON_FPGA_DEBUG_CLK80_V  0x1
+#define MODEM_SYSCON_FPGA_DEBUG_CLK80_S  4
+/* MODEM_SYSCON_FPGA_DEBUG_CLKSWITCH : R/W ;bitpos:[3] ;default: 1'b0 ; */
+/*description: .*/
+#define MODEM_SYSCON_FPGA_DEBUG_CLKSWITCH    (BIT(3))
+#define MODEM_SYSCON_FPGA_DEBUG_CLKSWITCH_M  (BIT(3))
+#define MODEM_SYSCON_FPGA_DEBUG_CLKSWITCH_V  0x1
+#define MODEM_SYSCON_FPGA_DEBUG_CLKSWITCH_S  3
 /* MODEM_SYSCON_MODEM_ANT_FORCE_SEL_WIFI : R/W ;bitpos:[2] ;default: 1'b0 ; */
 /*description: .*/
 #define MODEM_SYSCON_MODEM_ANT_FORCE_SEL_WIFI    (BIT(2))
@@ -100,6 +134,42 @@ extern "C" {
 #define MODEM_SYSCON_CLK_DATA_DUMP_MUX_M  (BIT(21))
 #define MODEM_SYSCON_CLK_DATA_DUMP_MUX_V  0x1
 #define MODEM_SYSCON_CLK_DATA_DUMP_MUX_S  21
+/* MODEM_SYSCON_CLK_I2C_MST_SEL_160M : R/W ;bitpos:[12] ;default: 1'b0 ; */
+/*description: .*/
+#define MODEM_SYSCON_CLK_I2C_MST_SEL_160M    (BIT(12))
+#define MODEM_SYSCON_CLK_I2C_MST_SEL_160M_M  (BIT(12))
+#define MODEM_SYSCON_CLK_I2C_MST_SEL_160M_V  0x1
+#define MODEM_SYSCON_CLK_I2C_MST_SEL_160M_S  12
+/* MODEM_SYSCON_CLK_PWDET_ADC_INV_ENA : R/W ;bitpos:[11] ;default: 1'b0 ; */
+/*description: .*/
+#define MODEM_SYSCON_CLK_PWDET_ADC_INV_ENA    (BIT(11))
+#define MODEM_SYSCON_CLK_PWDET_ADC_INV_ENA_M  (BIT(11))
+#define MODEM_SYSCON_CLK_PWDET_ADC_INV_ENA_V  0x1
+#define MODEM_SYSCON_CLK_PWDET_ADC_INV_ENA_S  11
+/* MODEM_SYSCON_CLK_RX_ADC_INV_ENA : R/W ;bitpos:[10] ;default: 1'b0 ; */
+/*description: .*/
+#define MODEM_SYSCON_CLK_RX_ADC_INV_ENA    (BIT(10))
+#define MODEM_SYSCON_CLK_RX_ADC_INV_ENA_M  (BIT(10))
+#define MODEM_SYSCON_CLK_RX_ADC_INV_ENA_V  0x1
+#define MODEM_SYSCON_CLK_RX_ADC_INV_ENA_S  10
+/* MODEM_SYSCON_CLK_TX_DAC_INV_ENA : R/W ;bitpos:[9] ;default: 1'b0 ; */
+/*description: .*/
+#define MODEM_SYSCON_CLK_TX_DAC_INV_ENA    (BIT(9))
+#define MODEM_SYSCON_CLK_TX_DAC_INV_ENA_M  (BIT(9))
+#define MODEM_SYSCON_CLK_TX_DAC_INV_ENA_V  0x1
+#define MODEM_SYSCON_CLK_TX_DAC_INV_ENA_S  9
+/* MODEM_SYSCON_PWDET_CLK_DIV_NUM : R/W ;bitpos:[8:1] ;default: 8'd1 ; */
+/*description: .*/
+#define MODEM_SYSCON_PWDET_CLK_DIV_NUM    0x000000FF
+#define MODEM_SYSCON_PWDET_CLK_DIV_NUM_M  ((MODEM_SYSCON_PWDET_CLK_DIV_NUM_V)<<(MODEM_SYSCON_PWDET_CLK_DIV_NUM_S))
+#define MODEM_SYSCON_PWDET_CLK_DIV_NUM_V  0xFF
+#define MODEM_SYSCON_PWDET_CLK_DIV_NUM_S  1
+/* MODEM_SYSCON_PWDET_SAR_CLOCK_ENA : R/W ;bitpos:[0] ;default: 1'b0 ; */
+/*description: .*/
+#define MODEM_SYSCON_PWDET_SAR_CLOCK_ENA    (BIT(0))
+#define MODEM_SYSCON_PWDET_SAR_CLOCK_ENA_M  (BIT(0))
+#define MODEM_SYSCON_PWDET_SAR_CLOCK_ENA_V  0x1
+#define MODEM_SYSCON_PWDET_SAR_CLOCK_ENA_S  0
 
 #define MODEM_SYSCON_CLK_CONF_FORCE_ON_REG          (DR_REG_MODEM_SYSCON_BASE + 0x8)
 /* MODEM_SYSCON_CLK_DATA_DUMP_FO : R/W ;bitpos:[31] ;default: 1'b0 ; */
@@ -268,6 +338,12 @@ extern "C" {
 #define MODEM_SYSCON_RST_ZBMAC_M  (BIT(24))
 #define MODEM_SYSCON_RST_ZBMAC_V  0x1
 #define MODEM_SYSCON_RST_ZBMAC_S  24
+/* MODEM_SYSCON_RST_ZBMAC_APB : R/W ;bitpos:[23] ;default: 1'b0 ; */
+/*description: .*/
+#define MODEM_SYSCON_RST_ZBMAC_APB    (BIT(23))
+#define MODEM_SYSCON_RST_ZBMAC_APB_M  (BIT(23))
+#define MODEM_SYSCON_RST_ZBMAC_APB_V  0x1
+#define MODEM_SYSCON_RST_ZBMAC_APB_S  23
 /* MODEM_SYSCON_RST_ETM : R/W ;bitpos:[22] ;default: 1'b0 ; */
 /*description: .*/
 #define MODEM_SYSCON_RST_ETM    (BIT(22))
@@ -484,7 +560,7 @@ extern "C" {
 #define MODEM_SYSCON_WIFI_BB_CFG_S  0
 
 #define MODEM_SYSCON_MEM_RF1_CONF_REG          (DR_REG_MODEM_SYSCON_BASE + 0x1C)
-/* MODEM_SYSCON_MODEM_RF1_MEM_AUX_CTRL : R/W ;bitpos:[31:0] ;default: 32'h2070 ; */
+/* MODEM_SYSCON_MODEM_RF1_MEM_AUX_CTRL : R/W ;bitpos:[31:0] ;default: 32'h00002070 ; */
 /*description: .*/
 #define MODEM_SYSCON_MODEM_RF1_MEM_AUX_CTRL    0xFFFFFFFF
 #define MODEM_SYSCON_MODEM_RF1_MEM_AUX_CTRL_M  ((MODEM_SYSCON_MODEM_RF1_MEM_AUX_CTRL_V)<<(MODEM_SYSCON_MODEM_RF1_MEM_AUX_CTRL_S))
@@ -492,7 +568,7 @@ extern "C" {
 #define MODEM_SYSCON_MODEM_RF1_MEM_AUX_CTRL_S  0
 
 #define MODEM_SYSCON_MEM_RF2_CONF_REG          (DR_REG_MODEM_SYSCON_BASE + 0x20)
-/* MODEM_SYSCON_MODEM_RF2_MEM_AUX_CTRL : R/W ;bitpos:[31:0] ;default: 32'h0 ; */
+/* MODEM_SYSCON_MODEM_RF2_MEM_AUX_CTRL : R/W ;bitpos:[31:0] ;default: 32'h00000000 ; */
 /*description: .*/
 #define MODEM_SYSCON_MODEM_RF2_MEM_AUX_CTRL    0xFFFFFFFF
 #define MODEM_SYSCON_MODEM_RF2_MEM_AUX_CTRL_M  ((MODEM_SYSCON_MODEM_RF2_MEM_AUX_CTRL_V)<<(MODEM_SYSCON_MODEM_RF2_MEM_AUX_CTRL_S))
@@ -500,18 +576,13 @@ extern "C" {
 #define MODEM_SYSCON_MODEM_RF2_MEM_AUX_CTRL_S  0
 
 #define MODEM_SYSCON_DATE_REG          (DR_REG_MODEM_SYSCON_BASE + 0x24)
-/* MODEM_SYSCON_DATE : R/W ;bitpos:[27:0] ;default: 28'h2304170 ; */
+/* MODEM_SYSCON_DATE : R/W ;bitpos:[27:0] ;default: 28'h2312050 ; */
 /*description: .*/
 #define MODEM_SYSCON_DATE    0x0FFFFFFF
 #define MODEM_SYSCON_DATE_M  ((MODEM_SYSCON_DATE_V)<<(MODEM_SYSCON_DATE_S))
 #define MODEM_SYSCON_DATE_V  0xFFFFFFF
 #define MODEM_SYSCON_DATE_S  0
 
-
 #ifdef __cplusplus
 }
 #endif
-
-
-
-#endif /*_SOC_MODEM_SYSCON_REG_H_ */

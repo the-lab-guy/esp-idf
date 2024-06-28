@@ -146,7 +146,7 @@ typedef uint32_t TickType_t;
 UBaseType_t xPortSetInterruptMaskFromISR(void);
 
 /**
- * @brief Reenable interrupts in a nested manner (meant to be called from ISRs)
+ * @brief Re-enable interrupts in a nested manner (meant to be called from ISRs)
  *
  * @warning Only applies to current CPU.
  * @param prev_int_level Previous interrupt level
@@ -466,7 +466,11 @@ void vPortTCBPreDeleteHook( void *pxTCB );
 // --------------------- Interrupts ------------------------
 
 #define portDISABLE_INTERRUPTS()            portSET_INTERRUPT_MASK_FROM_ISR()
+#if !SOC_INT_CLIC_SUPPORTED
 #define portENABLE_INTERRUPTS()             portCLEAR_INTERRUPT_MASK_FROM_ISR(RVHAL_INTR_ENABLE_THRESH)
+#else
+#define portENABLE_INTERRUPTS()             portCLEAR_INTERRUPT_MASK_FROM_ISR(RVHAL_INTR_ENABLE_THRESH_CLIC)
+#endif /* !SOC_INT_CLIC_SUPPORTED */
 
 /**
  * ISR versions to enable/disable interrupts
@@ -506,7 +510,7 @@ void vPortTCBPreDeleteHook( void *pxTCB );
 #define portENTER_CRITICAL_ISR(mux)                 vPortEnterCriticalMultiCore(mux)
 #define portEXIT_CRITICAL_ISR(mux)                  vPortExitCriticalMultiCore(mux)
 
-#define portTRY_ENTER_CRITICAL_SAFE(mux, timeout)   xPortEnterCriticalTimeoutSafe(mux)
+#define portTRY_ENTER_CRITICAL_SAFE(mux, timeout)   xPortEnterCriticalTimeoutSafe(mux, timeout)
 #define portENTER_CRITICAL_SAFE(mux)                vPortEnterCriticalSafe(mux)
 #define portEXIT_CRITICAL_SAFE(mux)                 vPortExitCriticalSafe(mux)
 #else
@@ -540,7 +544,12 @@ void vPortTCBPreDeleteHook( void *pxTCB );
         portEXIT_CRITICAL(mux);             \
     }                                       \
 })
-#define portTRY_ENTER_CRITICAL_SAFE(mux, timeout)   portENTER_CRITICAL_SAFE(mux, timeout)
+#define portTRY_ENTER_CRITICAL_SAFE(mux, timeout)   ({  \
+    (void)timeout;                                      \
+    portENTER_CRITICAL_SAFE(mux);                       \
+    BaseType_t ret = pdPASS;                            \
+    ret;                                                \
+})
 
 #endif /* (configNUM_CORES > 1) */
 
@@ -585,11 +594,11 @@ void vPortTCBPreDeleteHook( void *pxTCB );
 // ------------------- Run Time Stats ----------------------
 
 #define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()
-#define portGET_RUN_TIME_COUNTER_VALUE() 0
 #ifdef CONFIG_FREERTOS_RUN_TIME_STATS_USING_ESP_TIMER
-/* Coarse resolution time (us) */
-#define portALT_GET_RUN_TIME_COUNTER_VALUE(x)    do {x = (uint32_t)esp_timer_get_time();} while(0)
-#endif
+#define portGET_RUN_TIME_COUNTER_VALUE()        ((configRUN_TIME_COUNTER_TYPE) esp_timer_get_time())
+#else
+#define portGET_RUN_TIME_COUNTER_VALUE()        0
+#endif // CONFIG_FREERTOS_RUN_TIME_STATS_USING_ESP_TIMER
 
 // --------------------- TCB Cleanup -----------------------
 
@@ -661,7 +670,7 @@ static inline void __attribute__((always_inline)) vPortExitCriticalSafe(portMUX_
 
 FORCE_INLINE_ATTR bool xPortCanYield(void)
 {
-    uint32_t threshold = REG_READ(INTERRUPT_CURRENT_CORE_INT_THRESH_REG);
+
 #if SOC_INT_CLIC_SUPPORTED
     /* When CLIC is supported:
      *  - The lowest interrupt threshold level is 0. Therefore, an interrupt threshold level above 0 would mean that we
@@ -671,19 +680,18 @@ FORCE_INLINE_ATTR bool xPortCanYield(void)
      *    level, we read the machine-mode interrupt level (mil) field from the mintstatus CSR. A non-zero value indicates
      *    that we are in an interrupt context.
      */
+    uint32_t threshold = rv_utils_get_interrupt_threshold();
     uint32_t intr_level = rv_utils_get_interrupt_level();
-    threshold = threshold >> (CLIC_CPU_INT_THRESH_S + (8 - NLBITS));
-
     return ((intr_level == 0) && (threshold == 0));
-#endif /* SOC_INT_CLIC_SUPPORTED */
+#else/* !SOC_INT_CLIC_SUPPORTED */
+    uint32_t threshold = REG_READ(INTERRUPT_CURRENT_CORE_INT_THRESH_REG);
     /* when enter critical code, FreeRTOS will mask threshold to RVHAL_EXCM_LEVEL
      * and exit critical code, will recover threshold value (1). so threshold <= 1
      * means not in critical code
      */
     return (threshold <= 1);
+#endif
 }
-
-
 
 /* ------------------------------------------------------ Misc ---------------------------------------------------------
  * - Miscellaneous porting macros

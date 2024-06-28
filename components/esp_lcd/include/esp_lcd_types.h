@@ -1,13 +1,15 @@
 /*
- * SPDX-FileCopyrightText: 2021-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
+#include <stdbool.h>
 #include "esp_assert.h"
 #include "hal/lcd_types.h"
 #include "hal/mipi_dsi_types.h"
+#include "hal/color_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,31 +36,44 @@ typedef struct esp_lcd_panel_t *esp_lcd_panel_handle_t;       /*!< Type of LCD p
  * @brief RGB element order
  */
 typedef enum {
-    LCD_RGB_ELEMENT_ORDER_RGB, /*!< RGB element order: RGB */
-    LCD_RGB_ELEMENT_ORDER_BGR, /*!< RGB element order: BGR */
+    LCD_RGB_ELEMENT_ORDER_RGB = COLOR_RGB_ELEMENT_ORDER_RGB, /*!< RGB element order: RGB */
+    LCD_RGB_ELEMENT_ORDER_BGR = COLOR_RGB_ELEMENT_ORDER_BGR, /*!< RGB element order: BGR */
 } lcd_rgb_element_order_t;
 
 /** @cond */
-/**
- * @brief LCD color space type definition (WRONG!)
- * @deprecated RGB and BGR should belong to the same color space, but this enum take them both as two different color spaces.
- *             If you want to use a enum to describe a color space, please use lcd_color_space_t instead.
- */
-typedef enum {
-    ESP_LCD_COLOR_SPACE_RGB,        /*!< Color space: RGB */
-    ESP_LCD_COLOR_SPACE_BGR,        /*!< Color space: BGR */
-    ESP_LCD_COLOR_SPACE_MONOCHROME, /*!< Color space: monochrome */
-} esp_lcd_color_space_t __attribute__((deprecated));
-
-// Ensure binary compatibility with lcd_color_rgb_endian_t
-ESP_STATIC_ASSERT((lcd_rgb_element_order_t)ESP_LCD_COLOR_SPACE_RGB == LCD_RGB_ELEMENT_ORDER_RGB, "ESP_LCD_COLOR_SPACE_RGB is not compatible with LCD_RGB_ORDER_RGB");
-ESP_STATIC_ASSERT((lcd_rgb_element_order_t)ESP_LCD_COLOR_SPACE_BGR == LCD_RGB_ELEMENT_ORDER_BGR, "ESP_LCD_COLOR_SPACE_BGR is not compatible with LCD_RGB_ORDER_BGR");
-
 /// for backward compatible
 typedef lcd_rgb_element_order_t lcd_color_rgb_endian_t;
-#define LCD_RGB_ENDIAN_RGB LCD_RGB_ELEMENT_ORDER_RGB
-#define LCD_RGB_ENDIAN_BGR LCD_RGB_ELEMENT_ORDER_BGR
+#define LCD_RGB_ENDIAN_RGB (lcd_color_rgb_endian_t)LCD_RGB_ELEMENT_ORDER_RGB
+#define LCD_RGB_ENDIAN_BGR (lcd_color_rgb_endian_t)LCD_RGB_ELEMENT_ORDER_BGR
+
+typedef lcd_rgb_element_order_t esp_lcd_color_space_t;
+#define ESP_LCD_COLOR_SPACE_RGB (esp_lcd_color_space_t)LCD_RGB_ELEMENT_ORDER_RGB
+#define ESP_LCD_COLOR_SPACE_BGR (esp_lcd_color_space_t)LCD_RGB_ELEMENT_ORDER_BGR
+#define ESP_LCD_COLOR_SPACE_MONOCHROME (esp_lcd_color_space_t)2
 /** @endcond */
+
+/**
+ * @brief Type of LCD panel IO event data
+ */
+typedef struct {
+} esp_lcd_panel_io_event_data_t;
+
+/**
+ * @brief Declare the prototype of the function that will be invoked when panel IO finishes transferring color data
+ *
+ * @param[in] panel_io LCD panel IO handle, which is created by factory API like `esp_lcd_new_panel_io_spi()`
+ * @param[in] edata Panel IO event data, fed by driver
+ * @param[in] user_ctx User data, passed from `esp_lcd_panel_io_xxx_config_t`
+ * @return Whether a high priority task has been waken up by this function
+ */
+typedef bool (*esp_lcd_panel_io_color_trans_done_cb_t)(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t *edata, void *user_ctx);
+
+/**
+ * @brief Type of LCD panel IO callbacks
+ */
+typedef struct {
+    esp_lcd_panel_io_color_trans_done_cb_t on_color_trans_done; /*!< Callback invoked when color data transfer has finished */
+} esp_lcd_panel_io_callbacks_t;
 
 #ifdef __cplusplus
 }

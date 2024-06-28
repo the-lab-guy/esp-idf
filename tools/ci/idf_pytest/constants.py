@@ -5,6 +5,7 @@ Pytest Related Constants. Don't import third-party packages here.
 """
 import os
 import typing as t
+import warnings
 from dataclasses import dataclass
 from enum import Enum
 from functools import cached_property
@@ -18,6 +19,7 @@ from pytest_embedded.utils import to_list
 SUPPORTED_TARGETS = ['esp32', 'esp32s2', 'esp32c3', 'esp32s3', 'esp32c2', 'esp32c6', 'esp32h2', 'esp32p4']
 PREVIEW_TARGETS: t.List[str] = []  # this PREVIEW_TARGETS excludes 'linux' target
 DEFAULT_SDKCONFIG = 'default'
+DEFAULT_LOGDIR = 'pytest-embedded'
 
 TARGET_MARKERS = {
     'esp32': 'support esp32 target',
@@ -44,6 +46,7 @@ SPECIAL_MARKERS = {
 ENV_MARKERS = {
     # special markers
     'qemu': 'build and test using qemu, not real target',
+    'macos_shell': 'tests should be run on macos hosts',
     # single-dut markers
     'generic': 'tests should be run on generic runners',
     'flash_suspend': 'support flash suspend feature',
@@ -57,7 +60,6 @@ ENV_MARKERS = {
     'eth_dm9051': 'SPI Ethernet module with two DM9051',
     'quad_psram': 'runners with quad psram',
     'octal_psram': 'runners with octal psram',
-    'usb_host': 'usb host runners',
     'usb_host_flash_disk': 'usb host runners with USB flash disk attached',
     'usb_device': 'usb device runners',
     'ethernet_ota': 'ethernet OTA runners',
@@ -101,6 +103,8 @@ ENV_MARKERS = {
     'nvs_encr_hmac': 'Runner with test HMAC key programmed in efuse',
     'i2c_oled': 'Runner with ssd1306 I2C oled connected',
     'httpbin': 'runner for tests that need to access the httpbin service',
+    'flash_4mb': 'C2 runners with 4 MB flash',
+    'jtag_re_enable': 'Runner to re-enable jtag which is softly disabled by burning bit SOFT_DIS_JTAG on eFuse',
     # multi-dut markers
     'multi_dut_modbus_rs485': 'a pair of runners connected by RS485 bus',
     'ieee802154': 'ieee802154 related tests should run on ieee802154 runners.',
@@ -120,27 +124,28 @@ ENV_MARKERS = {
 DEFAULT_CONFIG_RULES_STR = ['sdkconfig.ci=default', 'sdkconfig.ci.*=', '=default']
 DEFAULT_IGNORE_WARNING_FILEPATH = os.path.join(IDF_PATH, 'tools', 'ci', 'ignore_build_warnings.txt')
 DEFAULT_BUILD_TEST_RULES_FILEPATH = os.path.join(IDF_PATH, '.gitlab', 'ci', 'default-build-test-rules.yml')
+DEFAULT_FULL_BUILD_TEST_COMPONENTS = [
+    'cxx',
+    'esp_common',
+    'esp_hw_support',
+    'esp_rom',
+    'esp_system',
+    'esp_timer',
+    'freertos',
+    'hal',
+    'heap',
+    'log',
+    'newlib',
+    'riscv',
+    'soc',
+    'xtensa',
+]
 DEFAULT_FULL_BUILD_TEST_FILEPATTERNS = [
     # tools
     'tools/cmake/**/*',
     'tools/tools.json',
     # ci
     'tools/ci/ignore_build_warnings.txt',
-    # components
-    'components/cxx/**/*',
-    'components/esp_common/**/*',
-    'components/esp_hw_support/**/*',
-    'components/esp_rom/**/*',
-    'components/esp_system/**/*',
-    'components/esp_timer/**/*',
-    'components/freertos/**/*',
-    'components/hal/**/*',
-    'components/heap/**/*',
-    'components/log/**/*',
-    'components/newlib/**/*',
-    'components/riscv/**/*',
-    'components/soc/**/*',
-    'components/xtensa/**/*',
 ]
 DEFAULT_BUILD_LOG_FILENAME = 'build_log.txt'
 
@@ -174,6 +179,7 @@ class PytestCase:
     apps: t.List[PytestApp]
 
     item: Function
+    multi_dut_without_param: bool
 
     def __hash__(self) -> int:
         return hash((self.path, self.name, self.apps, self.all_markers))
@@ -188,7 +194,22 @@ class PytestCase:
 
     @cached_property
     def targets(self) -> t.List[str]:
-        return [app.target for app in self.apps]
+        if not self.multi_dut_without_param:
+            return [app.target for app in self.apps]
+
+        # multi-dut test cases without parametrize
+        skip = True
+        for _t in [app.target for app in self.apps]:
+            if _t in self.target_markers:
+                skip = False
+                warnings.warn(f'`pytest.mark.[TARGET]` defined in parametrize for multi-dut test cases is deprecated. '  # noqa: W604
+                              f'Please use parametrize instead for test case {self.item.nodeid}')
+                break
+
+        if not skip:
+            return [app.target for app in self.apps]
+
+        return [''] * len(self.apps)  # this will help to filter these cases out later
 
     @cached_property
     def is_single_dut_test_case(self) -> bool:
@@ -214,7 +235,7 @@ class PytestCase:
             # temp markers should always use keyword arguments `targets` and `reason`
             if not temp_marker.kwargs.get('targets') or not temp_marker.kwargs.get('reason'):
                 raise ValueError(
-                    f'`{marker_name}` should always use keyword arguments `targets` and `reason`. '
+                    f'`{marker_name}` should always use keyword arguments `targets` and `reason`. '  # noqa: W604
                     f'For example: '
                     f'`@pytest.mark.{marker_name}(targets=["esp32"], reason="IDF-xxxx, will fix it ASAP")`'
                 )
@@ -273,7 +294,7 @@ class PytestCase:
                 bin_found[i] = 1
 
         if sum(bin_found) == 0:
-            msg = f'Skip test case {self.name} because all following binaries are not listed in the app lists: '
+            msg = f'Skip test case {self.name} because all following binaries are not listed in the app lists: '  # noqa: E713
             for app in self.apps:
                 msg += f'\n - {app.build_dir}'
 
@@ -284,7 +305,7 @@ class PytestCase:
             return None
 
         # some found, some not, looks suspicious
-        msg = f'Found some binaries of test case {self.name} are not listed in the app lists.'
+        msg = f'Found some binaries of test case {self.name} are not listed in the app lists.'  # noqa: E713
         for i, app in enumerate(self.apps):
             if bin_found[i] == 0:
                 msg += f'\n - {app.build_dir}'

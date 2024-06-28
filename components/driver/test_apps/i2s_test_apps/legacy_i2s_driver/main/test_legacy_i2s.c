@@ -22,6 +22,7 @@
 #include "soc/i2s_periph.h"
 #include "soc/soc_caps.h"
 #include "driver/gpio.h"
+#include "esp_private/gpio.h"
 #include "hal/gpio_hal.h"
 #include "unity.h"
 #include "math.h"
@@ -47,9 +48,9 @@
 static void i2s_test_io_config(int mode)
 {
     // Connect internal signals using IO matrix.
-    gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[MASTER_BCK_IO], PIN_FUNC_GPIO);
-    gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[MASTER_WS_IO], PIN_FUNC_GPIO);
-    gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[DATA_OUT_IO], PIN_FUNC_GPIO);
+    gpio_func_sel(MASTER_BCK_IO, PIN_FUNC_GPIO);
+    gpio_func_sel(MASTER_WS_IO, PIN_FUNC_GPIO);
+    gpio_func_sel(DATA_OUT_IO, PIN_FUNC_GPIO);
 
     gpio_set_direction(MASTER_BCK_IO, GPIO_MODE_INPUT_OUTPUT);
     gpio_set_direction(MASTER_WS_IO, GPIO_MODE_INPUT_OUTPUT);
@@ -582,7 +583,7 @@ TEST_CASE("I2S_write_and_read_test_with_master_tx_and_slave_rx", "[i2s_legacy]")
         }
         length = length + bytes_read;
     }
-    // test the readed data right or not
+    // test the read data right or not
     for (int i = end_position - 99; i <= end_position; i++) {
         TEST_ASSERT_EQUAL_UINT8((i - end_position + 100), *(i2s_read_buff + i));
     }
@@ -687,7 +688,7 @@ TEST_CASE("I2S_write_and_read_test_master_rx_and_slave_tx", "[i2s_legacy]")
         }
         length = length + bytes_read;
     }
-    // test the readed data right or not
+    // test the read data right or not
     for (int i = end_position - 99; i <= end_position; i++) {
         TEST_ASSERT_EQUAL_UINT8((i - end_position + 100), *(i2s_read_buff + i));
     }
@@ -869,7 +870,7 @@ static void i2s_test_common_sample_rate(i2s_port_t id)
     TEST_ESP_OK(pcnt_unit_enable(pcnt_unit));
 
     // Reconfig GPIO signal
-    gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[MASTER_WS_IO], PIN_FUNC_GPIO);
+    gpio_func_sel(MASTER_WS_IO, PIN_FUNC_GPIO);
     gpio_set_direction(MASTER_WS_IO, GPIO_MODE_INPUT_OUTPUT);
     esp_rom_gpio_connect_out_signal(MASTER_WS_IO, i2s_periph_signal[0].m_tx_ws_sig, 0, 0);
     esp_rom_gpio_connect_in_signal(MASTER_WS_IO, pcnt_periph_signals.groups[0].units[0].channels[0].pulse_sig, 0);
@@ -892,7 +893,7 @@ static void i2s_test_common_sample_rate(i2s_port_t id)
     case_cnt = 15;
 #endif
 
-    // Acquire the PM lock incase Dynamic Frequency Scaling(DFS) lower the frequency
+    // Acquire the PM lock in case Dynamic Frequency Scaling(DFS) lower the frequency
 #ifdef CONFIG_PM_ENABLE
     esp_pm_lock_handle_t pm_lock;
     esp_pm_lock_type_t pm_type = ESP_PM_APB_FREQ_MAX;
@@ -923,7 +924,7 @@ static void i2s_test_common_sample_rate(i2s_port_t id)
     TEST_ESP_OK(pcnt_del_unit(pcnt_unit));
 }
 
-TEST_CASE("I2S clock freqency test", "[i2s_legacy]")
+TEST_CASE("I2S clock frequency test", "[i2s_legacy]")
 {
     // master driver installed and send data
     i2s_config_t master_i2s_config = {

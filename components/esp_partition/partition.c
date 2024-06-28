@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -14,7 +14,7 @@
  * should go back to #include "sys/queue.h" once the tests are switched to CMake
  * see IDF-7000
  */
-#if __has_include(<bsd/string.h>)
+#if __has_include(<bsd/sys/queue.h>)
 #include <bsd/sys/queue.h>
 #else
 #include "sys/queue.h"
@@ -27,15 +27,13 @@
 #if !CONFIG_IDF_TARGET_LINUX
 #include "esp_flash.h"
 #include "esp_flash_encrypt.h"
+#include "spi_flash_mmap.h"
 #endif
 #include "esp_log.h"
 #include "esp_rom_md5.h"
 #include "bootloader_util.h"
 
 #if CONFIG_IDF_TARGET_LINUX
-#if __has_include(<bsd/string.h>)
-#include <bsd/string.h>
-#endif
 #include "esp_private/partition_linux.h"
 #endif
 
@@ -240,7 +238,8 @@ void esp_partition_unload_all(void)
     partition_list_item_t *it;
     partition_list_item_t *tmp;
     SLIST_FOREACH_SAFE(it, &s_partition_list, next, tmp) {
-        SLIST_REMOVE(&s_partition_list, it, partition_list_item_, next);
+        // Remove current head from the list and free it, new head is the next element
+        SLIST_REMOVE_HEAD(&s_partition_list, next);
         free(it);
     }
     _lock_release(&s_partition_list_lock);

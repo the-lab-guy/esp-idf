@@ -12,7 +12,7 @@
  *
  * However, usages of above components are different.
  * Therefore, we put the common used parts into `esp_hw_support`, including:
- * - adc power maintainance
+ * - adc power maintenance
  * - adc hw calibration settings
  * - adc locks, to prevent concurrently using adc hw
  */
@@ -61,7 +61,7 @@ static uint32_t s_adc_cali_param[SOC_ADC_PERIPH_NUM][SOC_ADC_ATTEN_NUM] = {};
 void adc_calc_hw_calibration_code(adc_unit_t adc_n, adc_atten_t atten)
 {
     if (s_adc_cali_param[adc_n][atten]) {
-        ESP_EARLY_LOGV(TAG, "Use calibrated val ADC%d atten=%d: %04X", adc_n + 1, atten, s_adc_cali_param[adc_n][atten]);
+        ESP_EARLY_LOGV(TAG, "Use calibrated val ADC%d atten=%d: %04" PRIX32, adc_n + 1, atten, s_adc_cali_param[adc_n][atten]);
         return ;
     }
 
@@ -93,7 +93,7 @@ void adc_calc_hw_calibration_code(adc_unit_t adc_n, adc_atten_t atten)
 #endif  //SOC_ADC_SELF_HW_CALI_SUPPORTED
 
     s_adc_cali_param[adc_n][atten] = init_code;
-    ESP_EARLY_LOGV(TAG, "Calib(V%d) ADC%d atten=%d: %04X", version, adc_n + 1, atten, init_code);
+    ESP_EARLY_LOGV(TAG, "Calib(V%d) ADC%d atten=%d: %04" PRIX32, version, adc_n + 1, atten, init_code);
 }
 
 void IRAM_ATTR adc_set_hw_calibration_code(adc_unit_t adc_n, adc_atten_t atten)
@@ -205,10 +205,10 @@ void adc_apb_periph_claim(void)
     portENTER_CRITICAL(&s_spinlock);
     s_adc_digi_ctrlr_cnt++;
     if (s_adc_digi_ctrlr_cnt == 1) {
-        //enable ADC digital part
-        periph_module_enable(PERIPH_SARADC_MODULE);
-        //reset ADC digital part
-        periph_module_reset(PERIPH_SARADC_MODULE);
+        ADC_BUS_CLK_ATOMIC() {
+            adc_ll_enable_bus_clock(true);
+            adc_ll_reset_register();
+        }
     }
 
     portEXIT_CRITICAL(&s_spinlock);
@@ -219,7 +219,9 @@ void adc_apb_periph_free(void)
     portENTER_CRITICAL(&s_spinlock);
     s_adc_digi_ctrlr_cnt--;
     if (s_adc_digi_ctrlr_cnt == 0) {
-        periph_module_disable(PERIPH_SARADC_MODULE);
+        ADC_BUS_CLK_ATOMIC() {
+            adc_ll_enable_bus_clock(false);
+        }
     } else if (s_adc_digi_ctrlr_cnt < 0) {
         portEXIT_CRITICAL(&s_spinlock);
         ESP_LOGE(TAG, "%s called, but `s_adc_digi_ctrlr_cnt == 0`", __func__);

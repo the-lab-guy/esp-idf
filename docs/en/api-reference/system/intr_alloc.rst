@@ -26,6 +26,10 @@ Overview
 
     The {IDF_TARGET_NAME} has two cores, with 32 external asynchronous interrupts each. Each interrupt's priority is independently programmable. In addition, there are also 3 core local interrupt sources (CLINT) on each core. See **{IDF_TARGET_NAME} Technical Reference Manual** [`PDF <{IDF_TARGET_TRM_EN_URL}#riscvcpu>`__] for more details.
 
+.. only:: esp32c5 or esp32c61
+
+    The {IDF_TARGET_NAME} has one core, with 32 external asynchronous interrupts. Each interrupt's priority is independently programmable. In addition, there are also 3 core local interrupt sources (CLINT). For details, see **{IDF_TARGET_NAME} Technical Reference Manual** > **High-Performance CPU** [`PDF <{IDF_TARGET_TRM_EN_URL}#riscvcpu>`__].
+
 Because there are more interrupt sources than interrupts, sometimes it makes sense to share an interrupt in multiple drivers. The :cpp:func:`esp_intr_alloc` abstraction exists to hide all these implementation details.
 
 A driver can allocate an interrupt for a certain peripheral by calling :cpp:func:`esp_intr_alloc` (or :cpp:func:`esp_intr_alloc_intrstatus`). It can use the flags passed to this function to specify the type, priority, and trigger method of the interrupt to allocate. The interrupt allocation code will then find an applicable interrupt, use the interrupt matrix to hook it up to the peripheral, and install the given interrupt handler and ISR to it.
@@ -69,12 +73,12 @@ To illustrate why shard interrupts can only be level-triggered, take the scenari
 
 .. only:: esp32p4
 
-    Multicore considerations
+    Multicore Considerations
     ------------------------
 
-    Despite providing internal interrupts, part of the RISC-V core, ESP-IDF only makes the use of the external interrupts, within the {IDF_TARGET_NAME} but outside the RISC-V cores themselves. Most {IDF_TARGET_NAME} peripherals are of this type.
+    Each core on {IDF_TARGET_NAME} provides internal interrupts that are triggered by the core itself and external interrupts that are triggered by peripherals. However, ESP-IDF only makes use of the external interrupts on {IDF_TARGET_NAME}. Most {IDF_TARGET_NAME} interrupt sources are external interrupts.
 
-    External interrupt slots in both CPU cores are wired to an interrupt matrix, which can be used to route any external interrupt source, defined in ``soc/interrupts.h`` as ``ETS_*_INTR_SOURCE``, to any of these interrupt slots.
+    Each external interrupt slot of each core is wired to the interrupt matrix. The interrupt matrix allows any interrupt slot to be connected to any external interrupt source. Mapping multiple external interrupts sources to a single slot is also supported. These external interrupt sources are defined in ``soc/interrupts.h`` as ``ETS_*_INTR_SOURCE``.
 
 .. only:: SOC_HP_CPU_HAS_MULTIPLE_CORES
 

@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: Unlicense OR CC0-1.0
  */
+#include "sdkconfig.h"
 #include <inttypes.h>
 #include "unity.h"
 #include "esp_system.h"
@@ -22,7 +23,8 @@
 
 #define CHECK_VALUE 0x89abcdef
 
-#if CONFIG_SOC_RTC_FAST_MEM_SUPPORTED || CONFIG_SOC_RTC_SLOW_MEM_SUPPORTED
+// TODO: IDF-9564
+#if (CONFIG_SOC_RTC_FAST_MEM_SUPPORTED || CONFIG_SOC_RTC_SLOW_MEM_SUPPORTED) && !CONFIG_IDF_TARGET_ESP32P4
 #define CHECK_RTC_MEM 1
 #endif //CONFIG_SOC_RTC_FAST_MEM_SUPPORTED || CONFIG_SOC_RTC_SLOW_MEM_SUPPORTED
 
@@ -140,8 +142,7 @@ static void setup_values(void)
 #endif
 }
 
-#if !TEMPORARY_DISABLED_FOR_TARGETS(ESP32P4) // TODO IDF-7529
-
+#if SOC_DEEP_SLEEP_SUPPORTED
 static void do_deep_sleep(void)
 {
     setup_values();
@@ -168,7 +169,7 @@ TEST_CASE_MULTIPLE_STAGES("reset reason ESP_RST_DEEPSLEEP", "[reset_reason][rese
                           do_deep_sleep,
                           check_reset_reason_deep_sleep);
 
-#endif //!TEMPORARY_DISABLED_FOR_TARGETS(...)
+#endif // SOC_DEEP_SLEEP_SUPPORTED
 
 static void do_exception(void)
 {
@@ -211,7 +212,7 @@ static void do_restart(void)
     esp_restart();
 }
 
-#if portNUM_PROCESSORS > 1
+#if CONFIG_FREERTOS_NUMBER_OF_CORES > 1
 static void do_restart_from_app_cpu(void)
 {
     setup_values();
@@ -239,7 +240,7 @@ TEST_CASE_MULTIPLE_STAGES("reset reason ESP_RST_SW after restart", "[reset_reaso
                           do_restart,
                           check_reset_reason_sw);
 
-#if portNUM_PROCESSORS > 1
+#if CONFIG_FREERTOS_NUMBER_OF_CORES > 1
 TEST_CASE_MULTIPLE_STAGES("reset reason ESP_RST_SW after restart from APP CPU", "[reset_reason][reset="RESET"]",
                           do_restart_from_app_cpu,
                           check_reset_reason_sw);
@@ -388,7 +389,7 @@ TEST_CASE_MULTIPLE_STAGES("reset reason ESP_RST_BROWNOUT after brownout event",
 #include "xt_instr_macros.h"
 #include "xtensa/config/specreg.h"
 
-static int size_stack = 1024 * 3;
+static int size_stack = 1024 * 4;
 static StackType_t *start_addr_stack;
 
 static int fibonacci(int n, void* func(void))

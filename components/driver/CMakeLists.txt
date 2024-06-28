@@ -16,13 +16,13 @@ set(includes "deprecated"
 # Always included linker fragments
 set(ldfragments "")
 
-# ADC related source files (dprecated)
+# ADC related source files (deprecated)
 if(CONFIG_SOC_ADC_SUPPORTED)
     list(APPEND srcs "deprecated/adc_legacy.c")
-endif()
 
-if(CONFIG_SOC_ADC_DMA_SUPPORTED)
-    list(APPEND srcs "deprecated/adc_dma_legacy.c")
+    if(CONFIG_SOC_ADC_DMA_SUPPORTED)
+        list(APPEND srcs "deprecated/adc_dma_legacy.c")
+    endif()
 endif()
 
 # DAC related source files
@@ -73,9 +73,11 @@ endif()
 
 # Touch Sensor related source files
 if(CONFIG_SOC_TOUCH_SENSOR_SUPPORTED)
-    list(APPEND srcs "touch_sensor/touch_sensor_common.c"
-                     "touch_sensor/${target}/touch_sensor.c")
-    list(APPEND includes "touch_sensor/${target}/include")
+    if(CONFIG_SOC_TOUCH_SENSOR_VERSION LESS 3)
+        list(APPEND srcs "touch_sensor/touch_sensor_common.c"
+                        "touch_sensor/${target}/touch_sensor.c")
+        list(APPEND includes "touch_sensor/${target}/include")
+    endif()
 endif()
 
 # TWAI related source files
@@ -109,4 +111,9 @@ else()
                                     esp_driver_uart esp_driver_ledc esp_driver_parlio esp_driver_usb_serial_jtag
                            LDFRAGMENTS ${ldfragments}
                           )
+    if(CONFIG_SOC_ADC_SUPPORTED AND
+       CONFIG_COMPILER_STATIC_ANALYZER AND CMAKE_C_COMPILER_ID STREQUAL "GNU") # TODO GCC-366
+        set_source_files_properties(deprecated/adc_legacy.c
+                                    PROPERTIES COMPILE_FLAGS "-Wno-analyzer-use-of-uninitialized-value")
+    endif()
 endif()

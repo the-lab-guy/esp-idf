@@ -1,25 +1,46 @@
 # SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-
 """This file is used for generating the child pipeline for build jobs."""
-
 import argparse
 import os
 import typing as t
 
 import __init__  # noqa: F401 # inject the system path
 import yaml
-from dynamic_pipelines.constants import (DEFAULT_APPS_BUILD_PER_JOB, DEFAULT_BUILD_CHILD_PIPELINE_FILEPATH,
-                                         DEFAULT_TEST_PATHS, NON_TEST_RELATED_APPS_FILENAME,
-                                         NON_TEST_RELATED_BUILD_JOB_NAME, TEST_RELATED_APPS_FILENAME,
-                                         TEST_RELATED_BUILD_JOB_NAME)
-from dynamic_pipelines.models import BuildJob, EmptyJob
+from dynamic_pipelines.constants import DEFAULT_APPS_BUILD_PER_JOB
+from dynamic_pipelines.constants import DEFAULT_BUILD_CHILD_PIPELINE_FILEPATH
+from dynamic_pipelines.constants import DEFAULT_TEST_PATHS
+from dynamic_pipelines.constants import NON_TEST_RELATED_APPS_FILENAME
+from dynamic_pipelines.constants import NON_TEST_RELATED_BUILD_JOB_NAME
+from dynamic_pipelines.constants import TEST_RELATED_APPS_FILENAME
+from dynamic_pipelines.constants import TEST_RELATED_BUILD_JOB_NAME
+from dynamic_pipelines.models import BuildJob
+from dynamic_pipelines.models import EmptyJob
 from dynamic_pipelines.utils import dump_jobs_to_yaml
 from idf_build_apps.utils import semicolon_separated_str_to_list
 from idf_ci.app import dump_apps_to_txt
 from idf_ci_utils import IDF_PATH
-from idf_pytest.constants import DEFAULT_CONFIG_RULES_STR, DEFAULT_FULL_BUILD_TEST_FILEPATTERNS, CollectMode
+from idf_pytest.constants import CollectMode
+from idf_pytest.constants import DEFAULT_CONFIG_RULES_STR
+from idf_pytest.constants import DEFAULT_FULL_BUILD_TEST_COMPONENTS
+from idf_pytest.constants import DEFAULT_FULL_BUILD_TEST_FILEPATTERNS
 from idf_pytest.script import get_all_apps
+
+
+def _separate_str_to_list(s: str) -> t.List[str]:
+    """
+    Gitlab env file will escape the doublequotes in the env file, so we need to remove them
+
+    For example,
+
+    in pipeline.env file we have
+
+    MR_MODIFIED_COMPONENTS="app1;app2"
+    MR_MODIFIED_FILES="main/app1.c;main/app2.c"
+
+    gitlab will load the doublequotes as well, so we need to remove the doublequotes
+    """
+    return semicolon_separated_str_to_list(s.strip('"'))  # type: ignore
 
 
 def main(arguments: argparse.Namespace) -> None:
@@ -146,7 +167,8 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--modified-components',
-        type=semicolon_separated_str_to_list,
+        type=_separate_str_to_list,
+        default=os.getenv('MR_MODIFIED_COMPONENTS'),
         help='semicolon-separated string which specifies the modified components. '
         'app with `depends_components` set in the corresponding manifest files would only be built '
         'if depends on any of the specified components. '
@@ -155,7 +177,8 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--modified-files',
-        type=semicolon_separated_str_to_list,
+        type=_separate_str_to_list,
+        default=os.getenv('MR_MODIFIED_FILES'),
         help='semicolon-separated string which specifies the modified files. '
         'app with `depends_filepatterns` set in the corresponding manifest files would only be built '
         'if any of the specified file pattern matches any of the specified modified files. '
@@ -163,9 +186,21 @@ if __name__ == '__main__':
         'If set to ";", the value would be considered as an empty list',
     )
     parser.add_argument(
+        '-ic',
+        '--ignore-app-dependencies-components',
+        type=_separate_str_to_list,
+        help='semicolon-separated string which specifies the modified components used for '
+        'ignoring checking the app dependencies. '
+        'The `depends_components` and `depends_filepatterns` set in the manifest files will be ignored '
+        'when any of the specified components matches any of the modified components. '
+        'Must be used together with --modified-components. '
+        'If set to "", the value would be considered as None. '
+        'If set to ";", the value would be considered as an empty list',
+    )
+    parser.add_argument(
         '-if',
         '--ignore-app-dependencies-filepatterns',
-        type=semicolon_separated_str_to_list,
+        type=_separate_str_to_list,
         help='semicolon-separated string which specifies the file patterns used for '
         'ignoring checking the app dependencies. '
         'The `depends_components` and `depends_filepatterns` set in the manifest files will be ignored '
@@ -188,8 +223,17 @@ if __name__ == '__main__':
         args.modified_files = None
         args.ignore_app_dependencies_filepatterns = None
     else:
-        print('Build and run only test cases matching the modified components and files')
-        if args.modified_files and not args.ignore_app_dependencies_filepatterns:
+        print(
+            f'Build and run only test cases matching:\n'
+            f'- modified components: {args.modified_components}\n'
+            f'- modified files: {args.modified_files}'
+        )
+
+        if args.modified_components is not None and not args.ignore_app_dependencies_components:
+            # setting default values
+            args.ignore_app_dependencies_components = DEFAULT_FULL_BUILD_TEST_COMPONENTS
+
+        if args.modified_files is not None and not args.ignore_app_dependencies_filepatterns:
             # setting default values
             args.ignore_app_dependencies_filepatterns = DEFAULT_FULL_BUILD_TEST_FILEPATTERNS
 

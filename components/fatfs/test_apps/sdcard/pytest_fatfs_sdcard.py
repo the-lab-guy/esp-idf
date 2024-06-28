@@ -15,14 +15,11 @@ from pytest_embedded import Dut
     ]
 )
 def test_fatfs_sdcard_generic_sdmmc(dut: Dut) -> None:
-    dut.expect_exact('Press ENTER to see the list of tests')
-    dut.write('')
-    dut.expect_exact('Enter test for running.')
-    dut.write('[sdmmc]')
-    dut.expect_unity_test_output(timeout=180)
+    dut.run_all_single_board_cases(group='sdmmc', timeout=180)
 
 
 @pytest.mark.esp32
+@pytest.mark.temp_skip_ci(targets=['esp32'], reason='IDFCI-2058, temporary lack runner')
 @pytest.mark.esp32c3
 @pytest.mark.sdcard_spimode
 @pytest.mark.parametrize(
@@ -33,11 +30,7 @@ def test_fatfs_sdcard_generic_sdmmc(dut: Dut) -> None:
     ]
 )
 def test_fatfs_sdcard_generic_sdspi(dut: Dut) -> None:
-    dut.expect_exact('Press ENTER to see the list of tests')
-    dut.write('')
-    dut.expect_exact('Enter test for running.')
-    dut.write('[sdspi]')
-    dut.expect_unity_test_output(timeout=180)
+    dut.run_all_single_board_cases(group='sdspi', timeout=180)
 
 
 @pytest.mark.esp32
@@ -50,14 +43,11 @@ def test_fatfs_sdcard_generic_sdspi(dut: Dut) -> None:
     ]
 )
 def test_fatfs_sdcard_psram_sdmmc(dut: Dut) -> None:
-    dut.expect_exact('Press ENTER to see the list of tests')
-    dut.write('')
-    dut.expect_exact('Enter test for running.')
-    dut.write('[sdmmc]')
-    dut.expect_unity_test_output(timeout=180)
+    dut.run_all_single_board_cases(group='sdmmc', timeout=180)
 
 
 @pytest.mark.esp32
+@pytest.mark.temp_skip_ci(targets=['esp32'], reason='IDFCI-2058, temporary lack runner')
 @pytest.mark.sdcard_spimode
 @pytest.mark.psram
 @pytest.mark.parametrize(
@@ -67,8 +57,4 @@ def test_fatfs_sdcard_psram_sdmmc(dut: Dut) -> None:
     ]
 )
 def test_fatfs_sdcard_psram_sdspi(dut: Dut) -> None:
-    dut.expect_exact('Press ENTER to see the list of tests')
-    dut.write('')
-    dut.expect_exact('Enter test for running.')
-    dut.write('[sdspi]')
-    dut.expect_unity_test_output(timeout=180)
+    dut.run_all_single_board_cases(group='sdspi', timeout=180)

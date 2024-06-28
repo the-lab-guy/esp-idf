@@ -1,5 +1,5 @@
 /**
- * SPDX-FileCopyrightText: 2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
  *
  *  SPDX-License-Identifier: Apache-2.0
  */
@@ -510,18 +510,18 @@ typedef union {
  */
 typedef union {
     struct {
-        /** touch_neg_noise_disupdate_baseline_en : R/W; bitpos: [0]; default: 0;
+        /** touch_nn_disupdate_baseline_en : R/W; bitpos: [0]; default: 0;
          *  Reserved
          */
-        uint32_t touch_neg_noise_disupdate_baseline_en:1;
+        uint32_t touch_nn_disupdate_baseline_en:1;
         /** touch_hysteresis : R/W; bitpos: [2:1]; default: 0;
          *  need_des
          */
         uint32_t touch_hysteresis:2;
-        /** touch_neg_noise_thres : R/W; bitpos: [4:3]; default: 0;
+        /** touch_nn_thres : R/W; bitpos: [4:3]; default: 0;
          *  need_des
          */
-        uint32_t touch_neg_noise_thres:2;
+        uint32_t touch_nn_thres:2;
         /** touch_noise_thres : R/W; bitpos: [6:5]; default: 0;
          *  need_des
          */
@@ -542,10 +542,10 @@ typedef union {
          *  need_des
          */
         uint32_t touch_filter_en:1;
-        /** touch_neg_noise_limit : R/W; bitpos: [20:17]; default: 5;
+        /** touch_nn_limit : R/W; bitpos: [20:17]; default: 5;
          *  need_des
          */
-        uint32_t touch_neg_noise_limit:4;
+        uint32_t touch_nn_limit:4;
         /** touch_approach_limit : R/W; bitpos: [28:21]; default: 80;
          *  need_des
          */
@@ -572,10 +572,10 @@ typedef union {
          *  need_des
          */
         uint32_t touch_bypass_noise_thres:1;
-        /** touch_bypass_neg_noise_thres : R/W; bitpos: [31]; default: 0;
+        /** touch_bypass_nn_thres : R/W; bitpos: [31]; default: 0;
          *  need_des
          */
-        uint32_t touch_bypass_neg_noise_thres:1;
+        uint32_t touch_bypass_nn_thres:1;
     };
     uint32_t val;
 } lp_analog_peri_touch_filter2_reg_t;
@@ -704,10 +704,14 @@ typedef union {
          *  High speed touch driver
          */
         uint32_t touch_freq_drv_hs:5;
-        /** touch_freq_dbias : R/W; bitpos: [22:18]; default: 0;
+        /** touch_bypass_shield : R/W; bitpos: [18]; default: 0;
+         *  bypass the shield channel output (only available since ECO1)
+         */
+        uint32_t touch_bypass_shield:1;
+        /** touch_freq_dbias : R/W; bitpos: [22:19]; default: 0;
          *  Internal LDO voltage
          */
-        uint32_t touch_freq_dbias:5;
+        uint32_t touch_freq_dbias:4;
         uint32_t reserved_23:9;
     };
     uint32_t val;
@@ -840,7 +844,7 @@ typedef union {
 
 
 typedef struct {
-    volatile lp_analog_peri_touch_pad_thn_reg_t thn[3];
+    volatile lp_analog_peri_touch_pad_thn_reg_t thresh[3];
 } lp_analog_peri_touch_padx_thn_reg_t;
 
 typedef struct {

@@ -9,7 +9,7 @@ entries:
         reset_reason:esp_reset_reason_get_hint (noflash)
         if ESP_SYSTEM_HW_STACK_GUARD = y:
             hw_stack_guard:esp_hw_stack_guard_get_bounds (noflash)
-            hw_stack_guard:esp_hw_stack_guard_is_fired (noflash)
+            hw_stack_guard:esp_hw_stack_guard_get_fired_cpu (noflash)
             hw_stack_guard:esp_hw_stack_guard_get_pc (noflash)
 
     esp_err (noflash)
@@ -29,6 +29,9 @@ entries:
         usb_console:esp_usb_console_dfu_detach_cb (noflash)
         usb_console:esp_usb_console_before_restart (noflash)
         usb_console:esp_usb_console_on_restart_timeout (noflash)
+
+    if APP_BUILD_TYPE_RAM = n:
+        image_process (noflash)
 
 [mapping:vfs_cdcacm]
 archive: libvfs.a

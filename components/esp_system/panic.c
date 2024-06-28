@@ -8,6 +8,7 @@
 
 #include "esp_err.h"
 #include "esp_attr.h"
+#include "esp_compiler.h"
 
 #include "esp_private/system_internal.h"
 #include "esp_private/usb_console.h"
@@ -221,7 +222,7 @@ static inline void disable_all_wdts(void)
     wdt_hal_write_protect_enable(&wdt0_context);
 
 #if SOC_TIMER_GROUPS >= 2
-    //Interupt WDT is the Main Watchdog Timer of Timer Group 1
+    //Interrupt WDT is the Main Watchdog Timer of Timer Group 1
     wdt_hal_write_protect_disable(&wdt1_context);
     wdt_hal_disable(&wdt1_context);
     wdt_hal_write_protect_enable(&wdt1_context);
@@ -376,14 +377,8 @@ void esp_panic_handler(panic_info_t *info)
     } else {
         disable_all_wdts();
         s_dumping_core = true;
-#if CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH
-        esp_core_dump_to_flash(info);
-#endif
-#if CONFIG_ESP_COREDUMP_ENABLE_TO_UART && !CONFIG_ESP_SYSTEM_PANIC_SILENT_REBOOT
-        esp_core_dump_to_uart(info);
-#endif
+        esp_core_dump_write(info);
         s_dumping_core = false;
-
         esp_panic_handler_reconfigure_wdts(1000);
     }
 #endif /* CONFIG_ESP_COREDUMP_ENABLE */
@@ -466,7 +461,9 @@ void IRAM_ATTR __attribute__((noreturn, no_sanitize_undefined)) panic_abort(cons
 #endif
 #endif
 
+    ESP_COMPILER_DIAGNOSTIC_PUSH_IGNORE("-Wanalyzer-null-dereference")
     *((volatile int *) 0) = 0; // NOLINT(clang-analyzer-core.NullDereference) should be an invalid operation on targets
+    ESP_COMPILER_DIAGNOSTIC_POP("-Wanalyzer-null-dereference")
     while (1);
 }
 

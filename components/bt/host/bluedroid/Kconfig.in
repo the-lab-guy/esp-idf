@@ -54,6 +54,25 @@ config BT_CLASSIC_ENABLED
     help
         For now this option needs "SMP_ENABLE" to be set to yes
 
+choice BT_ENC_KEY_SIZE_CTRL_ENABLED
+    prompt "configure encryption key size"
+    depends on BT_CLASSIC_ENABLED
+    default BT_ENC_KEY_SIZE_CTRL_VSC
+    help
+        This chooses the support status of configuring encryption key size
+
+    config BT_ENC_KEY_SIZE_CTRL_STD
+        depends on (BT_CONTROLLER_DISABLED || (BT_CONTROLLER_ENABLED && SOC_BT_H2C_ENC_KEY_CTRL_ENH_STD_SUPPORTED))
+        bool "Supported by standard HCI command"
+
+    config BT_ENC_KEY_SIZE_CTRL_VSC
+        depends on (BT_CONTROLLER_DISABLED || (BT_CONTROLLER_ENABLED && SOC_BT_H2C_ENC_KEY_CTRL_ENH_VSC_SUPPORTED))
+        bool "Supported by Vendor-specific HCI command"
+
+    config BT_ENC_KEY_SIZE_CTRL_NONE
+        bool "Not supported"
+endchoice
+
 config BT_CLASSIC_BQB_ENABLED
     bool "Host Qualitifcation support for Classic Bluetooth"
     depends on BT_CLASSIC_ENABLED
@@ -66,7 +85,7 @@ config BT_A2DP_ENABLE
     depends on BT_CLASSIC_ENABLED
     default n
     help
-        Advanced Audio Distrubution Profile
+        Advanced Audio Distribution Profile
 
 config BT_SPP_ENABLED
     bool "SPP"
@@ -121,7 +140,7 @@ config BT_HFP_WBS_ENABLE
     default y
     help
         This enables Wide Band Speech. Should disable it when SCO data path is PCM.
-        Otherwise there will be no data transmited via GPIOs.
+        Otherwise there will be no data transmitted via GPIOs.
 
 
 menuconfig BT_HID_ENABLED
@@ -273,7 +292,7 @@ config BT_GATTC_CACHE_NVS_FLASH
 config BT_GATTC_CONNECT_RETRY_COUNT
     int "The number of attempts to reconnect if the connection establishment failed"
     depends on BT_GATTC_ENABLE
-    range 0 7
+    range 0 255
     default 3
     help
         The number of attempts to reconnect if the connection establishment failed
@@ -292,6 +311,17 @@ config BT_SMP_SLAVE_CON_PARAMS_UPD_ENABLE
     help
         In order to reduce the pairing time, slave actively initiates connection parameters
         update during pairing.
+
+config BT_BLE_SMP_ID_RESET_ENABLE
+    bool "Reset device identity when all bonding records are deleted"
+    depends on BT_BLE_SMP_ENABLE
+    default n
+    help
+        There are tracking risks associated with using a fixed or static IRK.
+        If enabled this option, Bluedroid will assign a new randomly-generated IRK
+        when all pairing and bonding records are deleted. This would decrease the ability
+        of a previously paired peer to be used to determine whether a device
+        with which it previously shared an IRK is within range.
 
 config BT_STACK_NO_LOG
     bool "Disable BT debug logs (minimize bin size)"
@@ -1053,7 +1083,7 @@ config BT_ACL_CONNECTIONS
         is used.
 
 config BT_MULTI_CONNECTION_ENBALE
-    bool "Enable BLE multi-conections"
+    bool "Enable BLE multi-connections"
     depends on BT_BLE_ENABLED
     default y
     help
@@ -1127,7 +1157,7 @@ config BT_MAX_DEVICE_NAME_LEN
 
 config BT_BLE_RPA_SUPPORTED
     bool "Update RPA to Controller"
-    depends on (BT_BLUEDROID_ENABLED && ((BT_CONTROLLER_ENABLED && !SOC_BLE_DEVICE_PRIVACY_SUPPORTED) || BT_CONTROLLER_DISABLED))
+    depends on (BT_BLUEDROID_ENABLED && ((BT_CONTROLLER_ENABLED && !SOC_BLE_DEVICE_PRIVACY_SUPPORTED) || BT_CONTROLLER_DISABLED)) # NOERROR
     default n if (BT_CONTROLLER_ENABLED && !SOC_BLE_DEVICE_PRIVACY_SUPPORTED)
     default y if BT_CONTROLLER_DISABLED
     help
@@ -1156,7 +1186,8 @@ config BT_BLE_50_FEATURES_SUPPORTED
     depends on (BT_BLE_ENABLED && ((BT_CONTROLLER_ENABLED && SOC_BLE_50_SUPPORTED) || BT_CONTROLLER_DISABLED))
     default y
     help
-        Enabling this option activates BLE 5.0 features. This option is universally supported in chips that support BLE, except for ESP32.
+        Enabling this option activates BLE 5.0 features.
+        This option is universally supported in chips that support BLE, except for ESP32.
 
 config BT_BLE_42_FEATURES_SUPPORTED
     bool "Enable BLE 4.2 features"
@@ -1167,21 +1198,21 @@ config BT_BLE_42_FEATURES_SUPPORTED
 
 config BT_BLE_FEAT_PERIODIC_ADV_SYNC_TRANSFER
     bool "Enable BLE periodic advertising sync transfer feature"
-    depends on (BT_BLUEDROID_ENABLED && BT_BLE_50_FEATURES_SUPPORTED && ((BT_CONTROLLER_ENABLED && SOC_ESP_NIMBLE_CONTROLLER) || BT_CONTROLLER_DISABLED))
+    depends on (BT_BLUEDROID_ENABLED && BT_BLE_50_FEATURES_SUPPORTED && ((BT_CONTROLLER_ENABLED && SOC_ESP_NIMBLE_CONTROLLER) || BT_CONTROLLER_DISABLED)) # NOERROR
     default n
     help
         This enables BLE periodic advertising sync transfer feature
 
 config BT_BLE_FEAT_PERIODIC_ADV_ENH
     bool "Enable periodic adv enhancements(adi support)"
-    depends on (BT_BLUEDROID_ENABLED && BT_BLE_50_FEATURES_SUPPORTED && ((BT_CONTROLLER_ENABLED && SOC_ESP_NIMBLE_CONTROLLER) || BT_CONTROLLER_DISABLED))
+    depends on (BT_BLUEDROID_ENABLED && BT_BLE_50_FEATURES_SUPPORTED && ((BT_CONTROLLER_ENABLED && SOC_ESP_NIMBLE_CONTROLLER) || BT_CONTROLLER_DISABLED)) # NOERROR
     default n
     help
         Enable the periodic advertising enhancements
 
 config BT_BLE_FEAT_CREATE_SYNC_ENH
     bool "Enable create sync enhancements(reporting disable and duplicate filtering enable support)"
-    depends on (BT_BLUEDROID_ENABLED && BT_BLE_50_FEATURES_SUPPORTED && ((BT_CONTROLLER_ENABLED && SOC_ESP_NIMBLE_CONTROLLER) || BT_CONTROLLER_DISABLED))
+    depends on (BT_BLUEDROID_ENABLED && BT_BLE_50_FEATURES_SUPPORTED && ((BT_CONTROLLER_ENABLED && SOC_ESP_NIMBLE_CONTROLLER) || BT_CONTROLLER_DISABLED)) # NOERROR
     default n
     help
         Enable the create sync enhancements

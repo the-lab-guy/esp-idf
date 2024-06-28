@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2021-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Unlicense OR CC0-1.0
  */
@@ -13,7 +13,6 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 
-#include "esp_bt_device.h"
 #include "esp_hid_gap.h"
 
 #if CONFIG_BT_NIMBLE_ENABLED
@@ -23,6 +22,8 @@
 #include "host/ble_hs_adv.h"
 #include "nimble/ble.h"
 #include "host/ble_sm.h"
+#else
+#include "esp_bt_device.h"
 #endif
 
 static const char *TAG = "ESP_HID_GAP";
@@ -664,7 +665,7 @@ esp_err_t esp_hid_ble_gap_adv_init(uint16_t appearance, const char *device_name)
     //esp_ble_io_cap_t iocap = ESP_IO_CAP_OUT;//you have to enter the key on the host
     //esp_ble_io_cap_t iocap = ESP_IO_CAP_IN;//you have to enter the key on the device
     esp_ble_io_cap_t iocap = ESP_IO_CAP_IO;//you have to agree that key matches on both
-    //esp_ble_io_cap_t iocap = ESP_IO_CAP_NONE;//device is not capable of input or output, unsecure
+    //esp_ble_io_cap_t iocap = ESP_IO_CAP_NONE;//device is not capable of input or output, insecure
     uint8_t init_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
     uint8_t rsp_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
     uint8_t key_size = 16; //the key size should be 7~16 bytes
@@ -700,7 +701,7 @@ esp_err_t esp_hid_ble_gap_adv_init(uint16_t appearance, const char *device_name)
         return ret;
     }
 
-    if ((ret = esp_bt_dev_set_device_name(device_name)) != ESP_OK) {
+    if ((ret = esp_ble_gap_set_device_name(device_name)) != ESP_OK) {
         ESP_LOGE(TAG, "GAP set_device_name failed: %d", ret);
         return ret;
     }
@@ -726,9 +727,13 @@ esp_err_t esp_hid_ble_gap_adv_start(void)
     return esp_ble_gap_start_advertising(&hidd_adv_params);
 }
 #endif /* CONFIG_BT_BLE_ENABLED */
+
 #if CONFIG_BT_NIMBLE_ENABLED
-static struct ble_hs_adv_fields fields;
 #define GATT_SVR_SVC_HID_UUID 0x1812
+
+extern void ble_hid_task_start_up(void);
+static struct ble_hs_adv_fields fields;
+
 esp_err_t esp_hid_ble_gap_adv_init(uint16_t appearance, const char *device_name)
 {
     ble_uuid16_t *uuid16, *uuid16_1;
@@ -835,6 +840,7 @@ nimble_hid_gap_event(struct ble_gap_event *event, void *arg)
                 event->enc_change.status);
         rc = ble_gap_conn_find(event->enc_change.conn_handle, &desc);
         assert(rc == 0);
+        ble_hid_task_start_up();
         return 0;
 
     case BLE_GAP_EVENT_NOTIFY_TX:

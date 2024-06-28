@@ -216,7 +216,7 @@
 
 -
     re: "Failed to resolve component '(?!esp_ipc)(\\w+)'"
-    hint: "The component {} could not be found. This could be because: component name was misspelled, the component was not added to the build, the component has been moved to the IDF component manager or has been removed and refactored into some other component.\nPlease look out for component in 'https://components.espressif.com' and add using 'idf.py add-dependency' command.\nRefer to the migration guide for more details about moved components.\nRefer to the build-system guide for more details about how components are found and included in the build."
+    hint: "The component {} could not be found. This could be because: component name was misspelled, the component was not added to the build, the component has been moved to the IDF component manager, the component has been removed and refactored into some other component or the component may not be supported by the selected target.\nPlease look out for component in 'https://components.espressif.com' and add using 'idf.py add-dependency' command.\nRefer to the migration guide for more details about moved components.\nRefer to the build-system guide for more details about how components are found and included in the build."
     match_to_output: True
 
 -
@@ -321,6 +321,11 @@
     hint: "Device drivers are not correct.\nPlease check configuration of USB drivers: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/jtag-debugging/configure-ft2232h-jtag.html?highlight=zadig#configure-usb-drivers"
 
 -
+    re: "-Werror=(address-of-packed-member|aggressive-loop-optimizations|attribute-warning|builtin-macro-redefined|cpp|designated-init|deprecated-declarations|discarded-array-qualifiers|discarded-qualifiers|div-by-zero|endif-labels|free-nonheap-object|if-not-aligned|ignored-attributes|incompatible-pointer-types|int-conversion|int-to-pointer-cast|lto-type-mismatch|multichar|overflow|override-init-side-effects|packed-bitfield-compat|pointer-compare|pointer-to-int-cast|return-local-addr|scalar-storage-order|shift-count-negative|shift-count-overflow|sizeof-array-argument|stringop-truncation| switch-bool|switch-outside-range|varargs)"
+    hint: "The error(s) '{}' may appear after IDF upgrade since previous versions were not considering those warnings as errors.\nTo suppress these warnings use 'idf.py menuconfig' to enable configure option 'Compiler options' -> 'Disabe errors for default warnings'\nPlease note that this is not a permanent solution, and this option will be removed in a future update of the ESP-IDF.\nIt is strongly recommended to fix all warnings, as they may indicate potential issues!"
+    match_to_output: True
+
+-
     re: "(-Werror=address|-Werror=use-after-free)"
     hint: "The warning(s) '{}' may appear after compiler update above GCC-12\nTo suppress these warnings use 'idf.py menuconfig' to enable configure option 'Compiler options' -> 'Disable new warnings introduced in GCC 12'\nPlease note that this is not a permanent solution, and this option will be removed in a future update of the ESP-IDF.\nIt is strongly recommended to fix all warnings, as they may indicate potential issues!"
     match_to_output: True
@@ -422,3 +427,11 @@
     re: "-Werror=(xor-used-as-pow|enum-int-mismatch|self-move|dangling-reference)"
     hint: "The warning(s) '{}' may appear after compiler update above GCC-13\nTo suppress these warnings use 'idf.py menuconfig' to enable configure option 'Compiler options' -> 'Disable new warnings introduced in GCC 13'\nPlease note that this is not a permanent solution, and this option will be removed in a future update of the ESP-IDF.\nIt is strongly recommended to fix all warnings, as they may indicate potential issues!"
     match_to_output: True
+
+-
+    re: "implicit declaration of function '(opendir|readdir|telldir|seekdir|rewinddir|closedir|readdir_r|scandir|alphasort)'"
+    hint: "Please include <dirent.h> (not <sys/dirent.h>)"
+
+-
+    re: "unplaced orphan section"
+    hint: "Avoid creating custom sections. Please refer to the 'Linker Script Generation' article in the IDF documentation to address this. Or set option CONFIG_COMPILER_ORPHAN_SECTIONS_PLACE (not recommended)."

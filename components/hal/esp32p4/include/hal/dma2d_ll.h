@@ -55,15 +55,16 @@ extern "C" {
 #define DMA2D_LL_EVENT_TX_EOF                (1<<1)
 #define DMA2D_LL_EVENT_TX_DONE               (1<<0)
 
-// Bit masks that are used to indicate availbility of some sub-features in the channels
+// Bit masks that are used to indicate availability of some sub-features in the channels
 #define DMA2D_LL_TX_CHANNEL_SUPPORT_RO_MASK        (0U | BIT0) // TX channels that support reorder feature
 #define DMA2D_LL_TX_CHANNEL_SUPPORT_CSC_MASK       (0U | BIT0 | BIT1 | BIT2) // TX channels that support color space conversion feature
 
 #define DMA2D_LL_RX_CHANNEL_SUPPORT_RO_MASK        (0U | BIT0) // RX channels that support reorder feature
 #define DMA2D_LL_RX_CHANNEL_SUPPORT_CSC_MASK       (0U | BIT0) // RX channels that support color space conversion feature
 
-// Any "dummy" peripheral selection ID can be used for M2M mode {4, 5, 6, 7}
-#define DMA2D_LL_CHANNEL_PERIPH_M2M_FREE_ID_MASK   (0xF0)
+// Any "dummy" peripheral selection ID can be used for M2M mode
+#define DMA2D_LL_TX_CHANNEL_PERIPH_M2M_AVAILABLE_ID_MASK   (0xF0)
+#define DMA2D_LL_RX_CHANNEL_PERIPH_M2M_AVAILABLE_ID_MASK   (0xF8)
 // Peripheral selection ID that disconnects 2D-DMA channel from any peripherals
 #define DMA2D_LL_CHANNEL_PERIPH_NO_CHOICE          (7)
 // Peripheral selection ID register field width
@@ -103,17 +104,6 @@ static inline void dma2d_ll_reset_register(int group_id)
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
 #define dma2d_ll_reset_register(...) (void)__DECLARE_RCC_ATOMIC_ENV; dma2d_ll_reset_register(__VA_ARGS__)
-
-/**
- * @brief Configure 2D-DMA accessible internal and external memory start/end address (for both buffer and descriptor)
- */
-static inline void dma2d_ll_set_accessible_mem_range(dma2d_dev_t *dev)
-{
-    dev->intr_mem_start_addr.access_intr_mem_start_addr = SOC_DIRAM_DRAM_LOW; // L2MEM region (2D-DMA indeed is able to access TCM/LP_MEM regions, but will be restricted in IDF)
-    dev->intr_mem_end_addr.access_intr_mem_end_addr = SOC_DIRAM_DRAM_HIGH;
-    dev->extr_mem_start_addr.access_extr_mem_start_addr = SOC_EXTRAM_LOW;
-    dev->extr_mem_end_addr.access_extr_mem_end_addr = SOC_EXTRAM_HIGH;
-}
 
 /**
  * @brief Enable 2D-DMA module
@@ -230,7 +220,7 @@ static inline void dma2d_ll_rx_set_data_burst_length(dma2d_dev_t *dev, uint32_t 
 {
     uint32_t sel;
     switch (length) {
-    case DMA2D_DATA_BURST_LENGTH_1:
+    case DMA2D_DATA_BURST_LENGTH_8:
         sel = 0;
         break;
     case DMA2D_DATA_BURST_LENGTH_16:
@@ -384,13 +374,13 @@ static inline void dma2d_ll_rx_restart(dma2d_dev_t *dev, uint32_t channel)
 }
 
 /**
- * @brief Enable 2D-DMA RX to return the address of current descriptor when receives error
+ * @brief Configure the value of the owner field written back to the 2D-DMA RX descriptor
  */
 __attribute__((always_inline))
-static inline void dma2d_ll_rx_enable_auto_return(dma2d_dev_t *dev, uint32_t channel, bool enable)
+static inline void dma2d_ll_rx_set_auto_return_owner(dma2d_dev_t *dev, uint32_t channel, int owner)
 {
     volatile dma2d_in_link_conf_chn_reg_t *reg = (volatile dma2d_in_link_conf_chn_reg_t *)DMA2D_LL_IN_CHANNEL_GET_REG_ADDR(dev, channel, in_link_conf);
-    reg->inlink_auto_ret_chn = enable;
+    reg->inlink_auto_ret_chn = owner;
 }
 
 /**
@@ -489,7 +479,7 @@ static inline void dma2d_ll_rx_enable_reorder(dma2d_dev_t *dev, uint32_t channel
     reg->in_reorder_en_chn = enable;
 }
 
-// COLOR SPACE CONVERTION FUNCTION
+// COLOR SPACE CONVERSION FUNCTION
 
 /**
  * @brief Configure 2D-DMA RX channel color space conversion parameters
@@ -767,7 +757,7 @@ static inline void dma2d_ll_tx_set_data_burst_length(dma2d_dev_t *dev, uint32_t 
 {
     uint32_t sel;
     switch (length) {
-    case DMA2D_DATA_BURST_LENGTH_1:
+    case DMA2D_DATA_BURST_LENGTH_8:
         sel = 0;
         break;
     case DMA2D_DATA_BURST_LENGTH_16:
@@ -833,6 +823,16 @@ __attribute__((always_inline))
 static inline void dma2d_ll_tx_enable_dscr_port(dma2d_dev_t *dev, uint32_t channel, bool enable)
 {
     dev->out_channel[channel].out_conf0.out_dscr_port_en_chn = enable;
+}
+
+/**
+ * @brief Set 2D-DMA TX channel block size in dscr-port mode
+ */
+__attribute__((always_inline))
+static inline void dma2d_ll_tx_set_dscr_port_block_size(dma2d_dev_t *dev, uint32_t channel, uint32_t blk_h, uint32_t blk_v)
+{
+    dev->out_channel[channel].out_dscr_port_blk.out_dscr_port_blk_h_chn = blk_h;
+    dev->out_channel[channel].out_dscr_port_blk.out_dscr_port_blk_v_chn = blk_v;
 }
 
 /**
@@ -983,7 +983,7 @@ static inline void dma2d_ll_tx_enable_reorder(dma2d_dev_t *dev, uint32_t channel
     dev->out_channel[channel].out_conf0.out_reorder_en_chn = enable;
 }
 
-// COLOR SPACE CONVERTION FUNCTION
+// COLOR SPACE CONVERSION FUNCTION
 
 /**
  * @brief Configure 2D-DMA TX channel color space conversion parameters

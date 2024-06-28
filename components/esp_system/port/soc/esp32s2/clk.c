@@ -26,7 +26,6 @@
 #include "esp_private/esp_clk.h"
 #include "bootloader_clock.h"
 #include "soc/syscon_reg.h"
-#include "hal/clk_gate_ll.h"
 
 static const char *TAG = "clk";
 
@@ -60,7 +59,7 @@ typedef enum {
 
 static void select_rtc_slow_clk(slow_clk_sel_t slow_clk);
 
-__attribute__((weak)) void esp_clk_init(void)
+void esp_rtc_init(void)
 {
     rtc_config_t cfg = RTC_CONFIG_DEFAULT();
     soc_reset_reason_t rst_reas = esp_rom_get_reset_reason(0);
@@ -74,7 +73,10 @@ __attribute__((weak)) void esp_clk_init(void)
         }
     }
     rtc_init(cfg);
+}
 
+__attribute__((weak)) void esp_clk_init(void)
+{
     bool rc_fast_d256_is_enabled = rtc_clk_8md256_enabled();
     rtc_clk_8m_enable(true, rc_fast_d256_is_enabled);
     rtc_clk_fast_src_set(SOC_RTC_FAST_CLK_SRC_RC_FAST);
@@ -188,7 +190,7 @@ static void select_rtc_slow_clk(slow_clk_sel_t slow_clk)
             cal_val = (uint32_t)(cal_dividend / rtc_clk_slow_freq_get_hz());
         }
     } while (cal_val == 0);
-    ESP_EARLY_LOGD(TAG, "RTC_SLOW_CLK calibration value: %d", cal_val);
+    ESP_EARLY_LOGD(TAG, "RTC_SLOW_CLK calibration value: %" PRIu32, cal_val);
     esp_clk_slowclk_cal_set(cal_val);
 }
 
@@ -306,7 +308,7 @@ __attribute__((weak)) void esp_perip_clk_init(void)
 
     /* Set WiFi light sleep clock source to RTC slow clock */
     DPORT_REG_SET_FIELD(DPORT_BT_LPCK_DIV_INT_REG, DPORT_BT_LPCK_DIV_NUM, 0);
-    DPORT_CLEAR_PERI_REG_MASK(DPORT_BT_LPCK_DIV_FRAC_REG, DPORT_LPCLK_SEL_8M);
+    DPORT_CLEAR_PERI_REG_MASK(DPORT_BT_LPCK_DIV_FRAC_REG, DPORT_LPCLK_SEL_XTAL32K | DPORT_LPCLK_SEL_XTAL | DPORT_LPCLK_SEL_8M | DPORT_LPCLK_SEL_RTC_SLOW);
     DPORT_SET_PERI_REG_MASK(DPORT_BT_LPCK_DIV_FRAC_REG, DPORT_LPCLK_SEL_RTC_SLOW);
 
     /* Enable RNG clock. */

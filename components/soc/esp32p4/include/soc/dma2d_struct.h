@@ -46,7 +46,7 @@ typedef union {
          */
         uint32_t out_loop_test_chn:1;
         /** out_mem_burst_length_chn : R/W; bitpos: [8:6]; default: 0;
-         *  Block size of Tx channel 0. 0: single      1: 16 bytes      2: 32 bytes    3: 64
+         *  Block size of Tx channel 0. 0: 8 bytes      1: 16 bytes      2: 32 bytes    3: 64
          *  bytes    4: 128 bytes
          */
         uint32_t out_mem_burst_length_chn:3;
@@ -660,7 +660,7 @@ typedef union {
          */
         uint32_t out_color_output_sel_chn:2;
         /** out_color_3b_proc_en_chn : R/W; bitpos: [2]; default: 0;
-         *  Enable generic color convert modlue between color input & color output, need to
+         *  Enable generic color convert module between color input & color output, need to
          *  configure parameter.
          */
         uint32_t out_color_3b_proc_en_chn:1;
@@ -718,11 +718,11 @@ typedef union {
 typedef union {
     struct {
         /** out_dscr_port_blk_h_chn : R/W; bitpos: [13:0]; default: 18;
-         *  Set the vertical height of tx block size in dscr port mode
+         *  Set the horizontal width of tx block size in dscr port mode
          */
         uint32_t out_dscr_port_blk_h_chn:14;
         /** out_dscr_port_blk_v_chn : R/W; bitpos: [27:14]; default: 18;
-         *  Set the horizontal width of tx block size in dscr port mode
+         *  Set the vertical height of tx block size in dscr port mode
          */
         uint32_t out_dscr_port_blk_v_chn:14;
         uint32_t reserved_28:4;
@@ -762,7 +762,7 @@ typedef union {
          */
         uint32_t in_loop_test_chn:1;
         /** in_mem_burst_length_chn : R/W; bitpos: [8:6]; default: 0;
-         *  Block size of Rx channel 0. 0: single      1: 16 bytes      2: 32 bytes    3: 64
+         *  Block size of Rx channel 0. 0: 8 bytes      1: 16 bytes      2: 32 bytes    3: 64
          *  bytes    4: 128 bytes
          */
         uint32_t in_mem_burst_length_chn:3;
@@ -1179,8 +1179,8 @@ typedef union {
     struct {
         uint32_t reserved_0:20;
         /** inlink_auto_ret_chn : R/W; bitpos: [20]; default: 1;
-         *  Set this bit to return to current inlink descriptor's address, when there are some
-         *  errors in current receiving data.
+         *  Configure the value of the owner field written back to the inlink descriptor.
+         *  1: Write back 1. 0: Write back 0.
          */
         uint32_t inlink_auto_ret_chn:1;
         /** inlink_stop_chn : R/W/SC; bitpos: [21]; default: 0;
@@ -1411,7 +1411,7 @@ typedef union {
          */
         uint32_t in_color_output_sel_chn:2;
         /** in_color_3b_proc_en_chn : R/W; bitpos: [2]; default: 0;
-         *  Enable generic color convert modlue between color input & color output, need to
+         *  Enable generic color convert module between color input & color output, need to
          *  configure parameter.
          */
         uint32_t in_color_3b_proc_en_chn:1;

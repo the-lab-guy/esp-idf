@@ -7,8 +7,10 @@ set(srcs "commands.c"
 
 if(${target} STREQUAL "linux")
     list(APPEND srcs "esp_console_repl_linux.c")
+    set(requires "")
 else()
     list(APPEND srcs "esp_console_repl_chip.c")
+    set(requires vfs esp_vfs_console)
 endif()
 
 set(argtable_srcs argtable3/arg_cmd.c
@@ -31,17 +33,11 @@ idf_component_register(SRCS ${srcs}
                             ${argtable_srcs}
                     INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
                     PRIV_INCLUDE_DIRS private_include
-                    REQUIRES vfs
+                    REQUIRES "${requires}"
                     PRIV_REQUIRES esp_driver_uart
                                   esp_driver_usb_serial_jtag
                     )
 
-if(${target} STREQUAL "linux")
-    # link bsd library for strlcpy
-    find_library(LIB_BSD bsd)
-    if(LIB_BSD)
-        target_link_libraries(${COMPONENT_LIB} PRIVATE ${LIB_BSD})
-    elseif(NOT CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
-        message(WARNING "Missing LIBBSD library. Install libbsd-dev package and/or check linker directories.")
-    endif()
+if(CONFIG_COMPILER_STATIC_ANALYZER AND CMAKE_C_COMPILER_ID STREQUAL "GNU") # TODO IDF-10085
+    target_compile_options(${COMPONENT_LIB} PRIVATE "-fno-analyzer")
 endif()

@@ -98,7 +98,7 @@ Dynamic Frequency Scaling and Peripheral Drivers
 
 When DFS is enabled, the APB frequency can be changed multiple times within a single RTOS tick. The APB frequency change does not affect the operation of some peripherals, while other peripherals may have issues. For example, Timer Group peripheral timers keeps counting, however, the speed at which they count changes proportionally to the APB frequency.
 
-Peripheral clock sources such as ``REF_TICK``, ``XTAL``, ``RC_FAST`` (i.e., ``RTC_8M``), their frequencies will not be inflenced by APB frequency. And therefore, to ensure the peripheral behaves consistently during DFS, it is recommanded to select one of these clocks as the peripheral clock source. For more specific guidelines, please refer to the "Power Management" section of each peripheral's "API Reference > Peripherals API" page.
+Peripheral clock sources such as ``REF_TICK``, ``XTAL``, ``RC_FAST`` (i.e., ``RTC_8M``), their frequencies will not be inflenced by APB frequency. And therefore, to ensure the peripheral behaves consistently during DFS, it is recommended to select one of these clocks as the peripheral clock source. For more specific guidelines, please refer to the "Power Management" section of each peripheral's "API Reference > Peripherals API" page.
 
 Currently, the following peripheral drivers are aware of DFS and use the ``ESP_PM_APB_FREQ_MAX`` lock for the duration of the transaction:
 
@@ -142,32 +142,33 @@ Light-sleep Peripheral Power Down
     - INT_MTX
     - TEE/APM
     - IO_MUX / GPIO
-    - UART0
-    - TIMG0
+    - UART0/1
+    - GPTimer
     - SPI0/1
     - SYSTIMER
+    - RMT
 
     The following peripherals are not yet supported:
     - ETM
-    - TIMG1
     - ASSIST_DEBUG
     - Trace
     - Crypto: AES/ECC/HMAC/RSA/SHA/DS/XTA_AES/ECDSA
     - SPI2
-    - I2C
     - I2S
     - PCNT
     - USB-Serial-JTAG
     - TWAI
     - LEDC
     - MCPWM
-    - RMT
     - SARADC
     - SDIO
     - PARL_IO
-    - UART1
 
     For peripherals that do not support Light-sleep context retention, if the Power management is enabled, the ``ESP_PM_NO_LIGHT_SLEEP`` lock should be held when the peripheral is working to avoid losing the working context of the peripheral when entering sleep.
+
+    .. note::
+
+        When the peripheral power domain is powered down during sleep, both the IO_MUX and GPIO modules are inactive, meaning the chip pins' state is not maintained by these modules. To preserve the state of an IO during sleep, it's essential to call :cpp:func:`gpio_hold_dis` and :cpp:func:`gpio_hold_en` before and after configuring the GPIO state. This action ensures that the IO configuration is latched and prevents the IO from becoming floating while in sleep mode.
 
 
 API Reference

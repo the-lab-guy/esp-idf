@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -43,7 +43,7 @@
 #define DR_REG_REGDMA_BASE            (DR_REG_HPPERIPH0_BASE + 0x82000)
 #define DR_REG_SDMMC_BASE             (DR_REG_HPPERIPH0_BASE + 0x83000)
 #define DR_REG_H264_CORE_BASE         (DR_REG_HPPERIPH0_BASE + 0x84000)
-#define DR_REG_AHB_PDMA_BASE          (DR_REG_HPPERIPH0_BASE + 0x85000)
+#define DR_REG_AHB_DMA_BASE           (DR_REG_HPPERIPH0_BASE + 0x85000)
 #define DR_REG_JPEG_BASE              (DR_REG_HPPERIPH0_BASE + 0x86000)
 #define DR_REG_PPA_BASE               (DR_REG_HPPERIPH0_BASE + 0x87000)
 #define DR_REG_DMA2D_BASE             (DR_REG_HPPERIPH0_BASE + 0x88000)
@@ -64,6 +64,7 @@
 #define DR_REG_RMT_BASE               (DR_REG_HPPERIPH0_BASE + 0xA2000)
 #define DR_REG_BITSCRAM_BASE          (DR_REG_HPPERIPH0_BASE + 0xA3000)
 #define DR_REG_AXI_ICM_BASE           (DR_REG_HPPERIPH0_BASE + 0xA4000)
+#define DR_REG_AXI_ICM_QOS_BASE       (DR_REG_AXI_ICM_BASE   + 0x400)
 #define DR_REG_HP_PERI_PMS_BASE       (DR_REG_HPPERIPH0_BASE + 0xA5000)
 #define DR_REG_LP2HP_PERI_PMS_BASE    (DR_REG_HPPERIPH0_BASE + 0xA5800)
 #define DR_REG_DMA_PMS_BASE           (DR_REG_HPPERIPH0_BASE + 0xA6000)
@@ -194,15 +195,7 @@
 #define DR_REG_LPPERI_BASE                      DR_REG_LP_PERI_CLKRST_BASE
 #define DR_REG_CPU_BUS_MONITOR_BASE             DR_REG_CPU_BUS_MON_BASE
 
-//TODO: IDF-7542
-// #define DR_REG_TEE_BASE                         0x60098000
-// #define DR_REG_HP_APM_BASE                      0x60099000
-// #define DR_REG_LP_APM0_BASE                     0x60099800
-// #define DR_REG_LP_TEE_BASE                      0x600B3400
-// #define DR_REG_LP_APM_BASE                      0x600B3800
-
-//TODO: IDF-7531
-// #define DR_REG_PAU_BASE                         0x60093000
+#define DR_REG_PAU_BASE                         DR_REG_REGDMA_BASE
 
 //TODO: IDF-7688
 // #define DR_REG_TRACE_BASE                       0x600C0000

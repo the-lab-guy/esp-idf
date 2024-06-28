@@ -1,14 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include "esp_err.h"
 #include "esp_intr_alloc.h"
@@ -16,6 +12,10 @@ extern "C" {
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "hal/uart_types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* @brief When calling `uart_set_pin`, instead of GPIO number, `UART_PIN_NO_CHANGE`
  *        can be provided to keep the currently allocated pin.
@@ -46,6 +46,13 @@ typedef struct {
         lp_uart_sclk_t lp_source_clk;       /*!< LP_UART source clock selection */
 #endif
     };
+    struct {
+#if SOC_UART_SUPPORT_SLEEP_RETENTION
+        uint32_t backup_before_sleep: 1;    /*!< If set, the driver will backup/restore the HP UART registers before entering/after exiting sleep mode.
+                                                 By this approach, the system can power off HP UART's power domain.
+                                                 This can save power, but at the expense of more RAM being consumed */
+#endif
+    } flags;                                /*!< Configuration flags */
 } uart_config_t;
 
 /**
@@ -828,7 +835,7 @@ esp_err_t uart_wait_tx_idle_polling(uart_port_t uart_num);
   * @brief Configure TX signal loop back to RX module, just for the test usage.
   *
   * @param uart_num UART number
-  * @param loop_back_en Set ture to enable the loop back function, else set it false.
+  * @param loop_back_en Set true to enable the loop back function, else set it false.
   *
   * * @return
   *      - ESP_OK on success

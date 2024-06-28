@@ -20,8 +20,14 @@ variables:
   MAKEFLAGS: "-j5 --no-keep-going"
 
 # GitLab-CI environment
-
-  # now we have pack-objects cache, so clone strategy is faster than fetch
+  # Thanks to pack-objects cache, clone strategy should behave faster than fetch
+  #   so we pick "clone" as default git strategy
+  # Shiny runners by default remove the CI_PROJECT_DIR every time at the beginning of one job
+  #   and clone with a --depth=1
+  # Brew runners will fetch from locally mirror first, and cache the local CI_PROJECT_DIR
+  # In conclusion
+  # - set GIT_STRATEGY: "clone" to shiny runners
+  # - set GIT_STRATEGY: "fetch" to brew runners
   GIT_STRATEGY: clone
   # we will download archive for each submodule instead of clone.
   # we don't do "recursive" when fetch submodule as they're not used in CI now.
@@ -33,7 +39,7 @@ variables:
   GIT_FETCH_EXTRA_FLAGS: "--no-recurse-submodules --prune --prune-tags"
   # we're using .cache folder for caches
   GIT_CLEAN_FLAGS: -ffdx -e .cache/
-  LATEST_GIT_TAG: v5.3-dev
+  LATEST_GIT_TAG: v5.4-dev
 
   SUBMODULE_FETCH_TOOL: "tools/ci/ci_fetch_submodule.py"
   # by default we will fetch all submodules
@@ -46,12 +52,11 @@ variables:
   IDF_PATH: "$CI_PROJECT_DIR"
   V: "0"
   CHECKOUT_REF_SCRIPT: "$CI_PROJECT_DIR/tools/ci/checkout_project_ref.py"
-  PYTHON_VER: 3.8.17
 
   # Docker images
-  ESP_ENV_IMAGE: "${CI_DOCKER_REGISTRY}/esp-env-v5.3:1"
-  ESP_IDF_DOC_ENV_IMAGE: "${CI_DOCKER_REGISTRY}/esp-idf-doc-env-v5.3:1-1"
-  TARGET_TEST_ENV_IMAGE: "${CI_DOCKER_REGISTRY}/target-test-env-v5.3:1"
+  ESP_ENV_IMAGE: "${CI_DOCKER_REGISTRY}/esp-env-v5.4:1"
+  ESP_IDF_DOC_ENV_IMAGE: "${CI_DOCKER_REGISTRY}/esp-idf-doc-env-v5.4:1-1"
+  TARGET_TEST_ENV_IMAGE: "${CI_DOCKER_REGISTRY}/target-test-env-v5.4:1"
   SONARQUBE_SCANNER_IMAGE: "${CI_DOCKER_REGISTRY}/sonarqube-scanner:5"
   PRE_COMMIT_IMAGE: "${CI_DOCKER_REGISTRY}/esp-idf-pre-commit:1"
 
@@ -67,7 +72,7 @@ variables:
   CI_PYTHON_CONSTRAINT_BRANCH: ""
 
   # Update the filename for a specific ESP-IDF release. It is used only with CI_PYTHON_CONSTRAINT_BRANCH.
-  CI_PYTHON_CONSTRAINT_FILE: "espidf.constraints.v5.3.txt"
+  CI_PYTHON_CONSTRAINT_FILE: "espidf.constraints.v5.4.txt"
 
   # Set this variable to repository name of a Python tool you wish to install and test in the context of ESP-IDF CI.
   # Keep the variable empty when not used.
@@ -78,10 +83,24 @@ variables:
   # This is used only if CI_PYTHON_TOOL_REPO is not empty.
   CI_PYTHON_TOOL_BRANCH: ""
 
+  # Set this variable to Clang toolchain distro URL to be used.
+  # NOTE: We have separate toolchains for Xtensa and RISCV, therefore jobs for one arch will fail.
+  # This is OK as far as we use CI_CLANG_DISTRO_URL for pre-release tests purposes only.
+  # Keep the variable empty when not used.
+  CI_CLANG_DISTRO_URL: ""
+
   # Set this variable to specify the file name for the known failure cases.
   KNOWN_FAILURE_CASES_FILE_NAME: "master.txt"
 
   IDF_CI_BUILD: 1
+
+  # ccache settings
+  # some settings need to set in .gitlab-ci.yml as it takes effect while start-up the job
+  # https://ccache.dev/manual/latest.html#_configuring_ccache
+
+  # host mapping volume to share ccache between runner concurrent jobs
+  CCACHE_DIR: "/cache/idf_ccache"
+  CCACHE_MAXSIZE: "50G"
 
 ################################################
 # `before_script` and `after_script` Templates #
@@ -139,7 +158,7 @@ variables:
   fi
 
   # Install esp-clang if necessary
-  if [[ "$IDF_TOOLCHAIN" == "clang" ]]; then
+  if [[ "$IDF_TOOLCHAIN" == "clang" && -z "$CI_CLANG_DISTRO_URL" ]]; then
     $IDF_PATH/tools/idf_tools.py --non-interactive install esp-clang
   fi
 
@@ -154,7 +173,7 @@ variables:
 
   source ./export.sh
 
-  # Custom clang
+  # Custom clang toolchain
   if [[ ! -z "$CI_CLANG_DISTRO_URL" ]]; then
     echo "Using custom clang from ${CI_CLANG_DISTRO_URL}"
     wget $CI_CLANG_DISTRO_URL
@@ -181,7 +200,7 @@ variables:
 
 .show_ccache_statistics: &show_ccache_statistics |
   # Show ccache statistics if enabled globally
-  test "$CI_CCACHE_STATS" == 1 && test -n "$(which ccache)" && ccache --show-stats || true
+  test "$CI_CCACHE_STATS" == 1 && test -n "$(which ccache)" && ccache --show-stats -vv || true
 
 .upload_failed_job_log_artifacts: &upload_failed_job_log_artifacts |
   if [ $CI_JOB_STATUS = "failed" ]; then
@@ -194,6 +213,10 @@ variables:
 
 .before_script:build:macos:
   before_script:
+    # macos is running shell executor, which means it would use
+    # the system installed /usr/local/bin/python3 by default.
+    # Ensure pyenv and PYENV_VERSION installed
+    - eval "$(pyenv init -)"
     - *common-before_scripts
     # On macOS, these tools need to be installed
     - export IDF_TOOLS_PATH="${HOME}/.espressif_runner_${CI_RUNNER_ID}_${CI_CONCURRENT_ID}"
@@ -201,6 +224,14 @@ variables:
     # This adds tools (compilers) and the version-specific Python environment to PATH
     - *setup_tools_and_idf_python_venv
     - fetch_submodules
+
+.after_script:build:macos:upload-when-fail:
+  after_script:
+    # macos is running shell executor, which means it would use
+    # the system installed /usr/local/bin/python3 by default.
+    # Ensure pyenv and PYENV_VERSION installed
+    - eval "$(pyenv init -)"
+    - *upload_failed_job_log_artifacts
 
 .before_script:build:
   before_script:
@@ -299,21 +330,6 @@ variables:
     - *setup_tools_and_idf_python_venv
     - add_gitlab_ssh_keys
 
-# git describe requires commit history until the latest tag
-.before_script:fetch:git_describe:
-  variables:
-    GIT_STRAEGY: none
-  before_script:
-    - *git_init
-    - *git_fetch_from_mirror_url_if_exists
-    - git fetch origin refs/tags/"${LATEST_GIT_TAG}":refs/tags/"${LATEST_GIT_TAG}" --depth=1
-    - git repack -d
-    - git fetch origin $PIPELINE_COMMIT_SHA --shallow-since=$(git log -1 --format=%as "${LATEST_GIT_TAG}")
-    - *git_checkout_fetch_head
-    - *common-before_scripts
-    - *setup_tools_and_idf_python_venv
-    - add_gitlab_ssh_keys
-
 # target test runners may locate in different places
 # for runners set git mirror, we fetch from the mirror first, then fetch the HEAD commit
 .before_script:fetch:target_test:
@@ -353,9 +369,12 @@ default:
     - *setup_tools_and_idf_python_venv
     - add_gitlab_ssh_keys
     - fetch_submodules
-  artifacts:
-    expire_in: 1 week
-    when: always
+# gitlab bug, setting them here doesn't work
+# - expire_in: https://gitlab.com/gitlab-org/gitlab/-/issues/404563
+# - when: https://gitlab.com/gitlab-org/gitlab/-/issues/440672
+#  artifacts:
+#    expire_in: 1 week
+#    when: always
   retry:
     max: 2
     when:

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "sdkconfig.h"
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -30,18 +31,22 @@
 #include "esp_timer.h"
 #include "esp_private/wifi_os_adapter.h"
 #include "esp_private/wifi.h"
+#ifdef CONFIG_ESP_PHY_ENABLED
 #include "esp_phy_init.h"
+#include "phy_init_data.h"
+#endif
 #include "soc/rtc_cntl_reg.h"
 #include "soc/rtc.h"
 #include "soc/syscon_reg.h"
 #include "soc/system_reg.h"
-#include "phy_init_data.h"
 #include "esp_private/periph_ctrl.h"
 #include "esp_private/esp_clk.h"
 #include "nvs.h"
 #include "os.h"
 #include "esp_smartconfig.h"
+#ifdef CONFIG_ESP_COEX_ENABLED
 #include "private/esp_coexist_internal.h"
+#endif
 #include "esp32c3/rom/ets_sys.h"
 #include "private/esp_modem_wrapper.h"
 
@@ -54,17 +59,17 @@ extern void wifi_apb80m_request(void);
 extern void wifi_apb80m_release(void);
 #endif
 
-IRAM_ATTR void *wifi_malloc( size_t size )
+IRAM_ATTR void *wifi_malloc(size_t size)
 {
     return malloc(size);
 }
 
-IRAM_ATTR void *wifi_realloc( void *ptr, size_t size )
+IRAM_ATTR void *wifi_realloc(void *ptr, size_t size)
 {
     return realloc(ptr, size);
 }
 
-IRAM_ATTR void *wifi_calloc( size_t n, size_t size )
+IRAM_ATTR void *wifi_calloc(size_t n, size_t size)
 {
     return calloc(n, size);
 }
@@ -75,16 +80,16 @@ static void * IRAM_ATTR wifi_zalloc_wrapper(size_t size)
     return ptr;
 }
 
-wifi_static_queue_t* wifi_create_queue( int queue_len, int item_size)
+wifi_static_queue_t* wifi_create_queue(int queue_len, int item_size)
 {
     wifi_static_queue_t *queue = NULL;
 
-    queue = (wifi_static_queue_t*)heap_caps_malloc(sizeof(wifi_static_queue_t), MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT);
+    queue = (wifi_static_queue_t*)heap_caps_malloc(sizeof(wifi_static_queue_t), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     if (!queue) {
         return NULL;
     }
 
-    queue->handle = xQueueCreate( queue_len, item_size);
+    queue->handle = xQueueCreate(queue_len, item_size);
     return queue;
 }
 
@@ -247,7 +252,7 @@ static uint32_t event_group_wait_bits_wrapper(void *event, uint32_t bits_to_wait
 
 static int32_t task_create_pinned_to_core_wrapper(void *task_func, const char *name, uint32_t stack_depth, void *param, uint32_t prio, void *task_handle, uint32_t core_id)
 {
-    return (uint32_t)xTaskCreatePinnedToCore(task_func, name, stack_depth, param, prio, task_handle, (core_id < portNUM_PROCESSORS ? core_id : tskNO_AFFINITY));
+    return (uint32_t)xTaskCreatePinnedToCore(task_func, name, stack_depth, param, prio, task_handle, (core_id < CONFIG_FREERTOS_NUMBER_OF_CORES ? core_id : tskNO_AFFINITY));
 }
 
 static int32_t task_create_wrapper(void *task_func, const char *name, uint32_t stack_depth, void *param, uint32_t prio, void *task_handle)
@@ -329,31 +334,31 @@ static int get_time_wrapper(void *t)
 
 static void * IRAM_ATTR realloc_internal_wrapper(void *ptr, size_t size)
 {
-    return heap_caps_realloc(ptr, size, MALLOC_CAP_8BIT|MALLOC_CAP_DMA|MALLOC_CAP_INTERNAL);
+    return heap_caps_realloc(ptr, size, MALLOC_CAP_8BIT | MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
 }
 
 static void * IRAM_ATTR calloc_internal_wrapper(size_t n, size_t size)
 {
-    return heap_caps_calloc(n, size, MALLOC_CAP_8BIT|MALLOC_CAP_DMA|MALLOC_CAP_INTERNAL);
+    return heap_caps_calloc(n, size, MALLOC_CAP_8BIT | MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
 }
 
 static void * IRAM_ATTR zalloc_internal_wrapper(size_t size)
 {
-    void *ptr = heap_caps_calloc(1, size, MALLOC_CAP_8BIT|MALLOC_CAP_DMA|MALLOC_CAP_INTERNAL);
+    void *ptr = heap_caps_calloc(1, size, MALLOC_CAP_8BIT | MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
     return ptr;
 }
 
 static esp_err_t nvs_open_wrapper(const char* name, unsigned int open_mode, nvs_handle_t *out_handle)
 {
-    return nvs_open(name,(nvs_open_mode_t)open_mode, out_handle);
+    return nvs_open(name, (nvs_open_mode_t)open_mode, out_handle);
 }
 
 static void esp_log_writev_wrapper(unsigned int level, const char *tag, const char *format, va_list args)
 {
-    return esp_log_writev((esp_log_level_t)level,tag,format,args);
+    return esp_log_writev((esp_log_level_t)level, tag, format, args);
 }
 
-static void esp_log_write_wrapper(unsigned int level,const char *tag,const char *format, ...)
+static void esp_log_write_wrapper(unsigned int level, const char *tag, const char *format, ...)
 {
     va_list list;
     va_start(list, format);
@@ -529,6 +534,24 @@ static int coex_schm_register_cb_wrapper(int type, int(*cb)(int))
 #endif
 }
 
+static int coex_schm_flexible_period_set_wrapper(uint8_t period)
+{
+#if CONFIG_ESP_COEX_POWER_MANAGEMENT
+    return coex_schm_flexible_period_set(period);
+#else
+    return 0;
+#endif
+}
+
+static uint8_t coex_schm_flexible_period_get_wrapper(void)
+{
+#if CONFIG_ESP_COEX_POWER_MANAGEMENT
+    return coex_schm_flexible_period_get();
+#else
+    return 1;
+#endif
+}
+
 static void IRAM_ATTR esp_empty_wrapper(void)
 {
 
@@ -580,8 +603,8 @@ wifi_osi_funcs_t g_wifi_osi_funcs = {
     ._queue_msg_waiting = (uint32_t(*)(void *))uxQueueMessagesWaiting,
     ._event_group_create = (void *(*)(void))xEventGroupCreate,
     ._event_group_delete = (void(*)(void *))vEventGroupDelete,
-    ._event_group_set_bits = (uint32_t(*)(void *,uint32_t))xEventGroupSetBits,
-    ._event_group_clear_bits = (uint32_t(*)(void *,uint32_t))xEventGroupClearBits,
+    ._event_group_set_bits = (uint32_t(*)(void *, uint32_t))xEventGroupSetBits,
+    ._event_group_clear_bits = (uint32_t(*)(void *, uint32_t))xEventGroupClearBits,
     ._event_group_wait_bits = event_group_wait_bits_wrapper,
     ._task_create_pinned_to_core = task_create_pinned_to_core_wrapper,
     ._task_create = task_create_wrapper,
@@ -662,5 +685,7 @@ wifi_osi_funcs_t g_wifi_osi_funcs = {
     ._coex_register_start_cb = coex_register_start_cb_wrapper,
     ._coex_schm_process_restart = coex_schm_process_restart_wrapper,
     ._coex_schm_register_cb = coex_schm_register_cb_wrapper,
+    ._coex_schm_flexible_period_set = coex_schm_flexible_period_set_wrapper,
+    ._coex_schm_flexible_period_get = coex_schm_flexible_period_get_wrapper,
     ._magic = ESP_WIFI_OS_ADAPTER_MAGIC,
 };

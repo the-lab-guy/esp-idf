@@ -73,6 +73,11 @@
 #define SDP_INCLUDED                TRUE
 #define BTA_DM_QOS_INCLUDED         TRUE
 
+#define ENC_KEY_SIZE_CTRL_MODE_NONE 0
+#define ENC_KEY_SIZE_CTRL_MODE_STD  1
+#define ENC_KEY_SIZE_CTRL_MODE_VSC  2
+#define ENC_KEY_SIZE_CTRL_MODE      UC_BT_ENC_KEY_SIZE_CTRL_MODE
+
 #if (UC_BT_A2DP_ENABLED == TRUE)
 #define BTA_AR_INCLUDED             TRUE
 #define BTA_AV_INCLUDED             TRUE
@@ -284,6 +289,12 @@
 #else
 #define SMP_SLAVE_CON_PARAMS_UPD_ENABLE     FALSE
 #endif /* UC_BT_SMP_SLAVE_CON_PARAMS_UPD_ENABLE */
+
+#if (UC_BT_BLE_SMP_ID_RESET_ENABLE)
+#define BLE_SMP_ID_RESET_ENABLE          TRUE
+#else
+#define BLE_SMP_ID_RESET_ENABLE          FALSE
+#endif
 
 #ifdef UC_BTDM_BLE_ADV_REPORT_FLOW_CTRL_SUPP
 #define BLE_ADV_REPORT_FLOW_CONTROL         (UC_BTDM_BLE_ADV_REPORT_FLOW_CTRL_SUPP && BLE_INCLUDED)
@@ -564,7 +575,7 @@
 #define BT_CLASSIC_BQB_INCLUDED FALSE
 #endif
 
-/* This feature is used to eanble interleaved scan*/
+/* This feature is used to enable interleaved scan*/
 #ifndef BTA_HOST_INTERLEAVE_SEARCH
 #define BTA_HOST_INTERLEAVE_SEARCH FALSE
 #endif
@@ -1380,7 +1391,7 @@
 #define GATT_CONFORMANCE_TESTING           FALSE
 #endif
 
-/* number of background connection device allowence, ideally to be the same as WL size
+/* number of background connection device allowance, ideally to be the same as WL size
 */
 #ifndef GATT_MAX_BG_CONN_DEV
 #define GATT_MAX_BG_CONN_DEV        8 /*MAX is 32*/

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -24,6 +24,24 @@ typedef int                         isp_clk_src_t;     ///< Default type
 #endif
 
 /**
+ * @brief ISP coordinate type
+ *
+ */
+typedef struct {
+    uint32_t    x;      ///< X coordinate of the point
+    uint32_t    y;      ///< Y coordinate of the point
+} isp_coordinate_t;
+
+/**
+ * @brief ISP window type
+ *
+ */
+typedef struct {
+    isp_coordinate_t top_left;       ///< The top left point coordinate
+    isp_coordinate_t btm_right;      ///< The bottom right point coordinate
+} isp_window_t;
+
+/**
  * @brief ISP Input Source
  */
 typedef enum {
@@ -46,27 +64,64 @@ typedef enum {
 } isp_color_t;
 
 /*---------------------------------------------------------------
+                      DVP
+---------------------------------------------------------------*/
+#if SOC_ISP_DVP_DATA_WIDTH_MAX
+#define ISP_DVP_DATA_SIG_NUM   SOC_ISP_DVP_DATA_WIDTH_MAX // The ISP DVP data signal number
+#else
+#define ISP_DVP_DATA_SIG_NUM   0
+#endif
+
+/*---------------------------------------------------------------
                       AF
 ---------------------------------------------------------------*/
-/**
- * @brief ISP AF window
- */
-typedef struct {
-    uint32_t top_left_x;        ///< Top left x axis value
-    uint32_t top_left_y;        ///< Top left y axis value
-    uint32_t bottom_right_x;    ///< Bottom right x axis value
-    uint32_t bottom_right_y;    ///< Bottom right y axis value
-} isp_af_window_t;
+#if SOC_ISP_AF_WINDOW_NUMS
+#define ISP_AF_WINDOW_NUM   SOC_ISP_AF_WINDOW_NUMS      // The AF window number for sampling
+#else
+#define ISP_AF_WINDOW_NUM   0
+#endif
+
+/*---------------------------------------------------------------
+                      BF
+---------------------------------------------------------------*/
+#if SOC_ISP_BF_SUPPORTED
+#define ISP_BF_TEMPLATE_X_NUMS    SOC_ISP_BF_TEMPLATE_X_NUMS    // BF template x field nums
+#define ISP_BF_TEMPLATE_Y_NUMS    SOC_ISP_BF_TEMPLATE_Y_NUMS    // BF template y field nums
+#else
+#define ISP_BF_TEMPLATE_X_NUMS    0
+#define ISP_BF_TEMPLATE_Y_NUMS    0
+#endif
 
 /**
- * @brief ISP AF result
+ * @brief ISP BF edge padding mode
  */
-typedef struct {
-#if SOC_ISP_SUPPORTED
-    int definition[SOC_ISP_AF_WINDOW_NUMS];    ///< Definition, it refers how clear and sharp an image is
-    int luminance[SOC_ISP_AF_WINDOW_NUMS];     ///< Luminance, it refers how luminant an image is
+typedef enum {
+    ISP_BF_EDGE_PADDING_MODE_SRND_DATA,      ///< Fill BF edge padding data with surrounding pixel data
+    ISP_BF_EDGE_PADDING_MODE_CUSTOM_DATA,    ///< Fill BF edge padding data with custom pixel data
+} isp_bf_edge_padding_mode_t;
+
+/*---------------------------------------------------------------
+                      CCM
+---------------------------------------------------------------*/
+#if SOC_ISP_CCM_SUPPORTED
+#define ISP_CCM_DIMENSION   SOC_ISP_CCM_DIMENSION  ///< ISP Color Correction Matrix dimension
+#else
+#define ISP_CCM_DIMENSION   0                      ///< Not support CCM
 #endif
-} isp_af_result_t;
+
+/*---------------------------------------------------------------
+                      AWB
+---------------------------------------------------------------*/
+
+/**
+ * @brief ISP AWB sample point in the ISP pipeline
+ *
+ */
+typedef enum {
+    ISP_AWB_SAMPLE_POINT_BEFORE_CCM,       ///< Sample AWB data before CCM (Color Correction Matrix)
+    ISP_AWB_SAMPLE_POINT_AFTER_CCM,        ///< Sample AWB data after CCM (Color Correction Matrix)
+} isp_awb_sample_point_t;
+
 
 #ifdef __cplusplus
 }

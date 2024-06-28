@@ -18,6 +18,7 @@
 #include <sys/param.h> // For MIN/MAX
 #include <stdbool.h>
 #include <string.h>
+#include "sdkconfig.h"  // TODO: remove
 
 #include "soc/spi_periph.h"
 #include "soc/spi_mem_struct.h"
@@ -27,6 +28,7 @@
 #include "hal/spi_types.h"
 #include "hal/spi_flash_types.h"
 #include "soc/pcr_struct.h"
+#include "esp_rom_sys.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -625,11 +627,7 @@ static inline void spimem_flash_ll_set_cs_setup(spi_mem_dev_t *dev, uint32_t cs_
 static inline uint8_t spimem_flash_ll_get_source_freq_mhz(void)
 {
     // TODO: [ESP32C5] IDF-8649
-    // MAY CAN IMPROVE (ONLY rc_fast case is incorrect)!
-    // TODO: Default is PLL480M, this is hard-coded.
-    // In the future, we can get the CPU clock source by calling interface.
-    // HAL_ASSERT(HAL_FORCE_READ_U32_REG_FIELD(PCR.mspi_clk_conf, mspi_func_clk_sel) == 2);
-    return 40; // Use Xtal clock source
+    return 80;
 }
 
 /**

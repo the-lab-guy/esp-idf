@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -19,7 +19,6 @@
 #include "soc/rmt_periph.h"
 #include "hal/rmt_ll.h"
 #include "driver/gpio.h"
-#include "esp_clk_tree.h"
 #include "esp_private/periph_ctrl.h"
 
 static const char *TAG = "rmt";
@@ -43,6 +42,10 @@ typedef struct rmt_platform_t {
 } rmt_platform_t;
 
 static rmt_platform_t s_platform; // singleton platform
+
+#if RMT_USE_RETENTION_LINK
+static esp_err_t rmt_create_sleep_retention_link_cb(void *arg);
+#endif
 
 rmt_group_t *rmt_acquire_group_handle(int group_id)
 {
@@ -82,6 +85,24 @@ rmt_group_t *rmt_acquire_group_handle(int group_id)
     _lock_release(&s_platform.mutex);
 
     if (new_group) {
+#if RMT_USE_RETENTION_LINK
+        sleep_retention_module_t module = RMT_LL_SLEEP_RETENTION_MODULE_ID(group_id);
+        sleep_retention_module_init_param_t init_param = {
+            .cbs = {
+                .create = {
+                    .handle = rmt_create_sleep_retention_link_cb,
+                    .arg = group,
+                },
+            },
+            .depends = BIT(SLEEP_RETENTION_MODULE_CLOCK_SYSTEM)
+        };
+        if (sleep_retention_module_init(module, &init_param) == ESP_OK) {
+            group->sleep_retention_module = module;
+        } else {
+            // even though the sleep retention module init failed, RMT driver should still work, so just warning here
+            ESP_LOGW(TAG, "init sleep retention failed %d, power domain may be turned off during sleep", group_id);
+        }
+#endif // RMT_USE_RETENTION_LINK
         ESP_LOGD(TAG, "new group(%d) at %p, occupy=%"PRIx32, group_id, group, group->occupy_mask);
     }
     return group;
@@ -109,7 +130,6 @@ void rmt_release_group_handle(rmt_group_t *group)
         RMT_RCC_ATOMIC() {
             rmt_ll_enable_bus_clock(group_id, false);
         }
-        free(group);
     }
     _lock_release(&s_platform.mutex);
 
@@ -124,6 +144,15 @@ void rmt_release_group_handle(rmt_group_t *group)
     }
 
     if (do_deinitialize) {
+#if RMT_USE_RETENTION_LINK
+        if (group->sleep_retention_module) {
+            if (group->retention_link_created) {
+                sleep_retention_module_free(group->sleep_retention_module);
+            }
+            sleep_retention_module_deinit(group->sleep_retention_module);
+        }
+#endif
+        free(group);
         ESP_LOGD(TAG, "del group(%d)", group_id);
     }
 }
@@ -205,7 +234,6 @@ esp_err_t rmt_apply_carrier(rmt_channel_handle_t channel, const rmt_carrier_conf
 esp_err_t rmt_del_channel(rmt_channel_handle_t channel)
 {
     ESP_RETURN_ON_FALSE(channel, ESP_ERR_INVALID_ARG, TAG, "invalid argument");
-    gpio_reset_pin(channel->gpio_num);
     return channel->del(channel);
 }
 
@@ -266,3 +294,33 @@ int rmt_get_isr_flags(rmt_group_t *group)
     }
     return isr_flags;
 }
+
+#if RMT_USE_RETENTION_LINK
+static esp_err_t rmt_create_sleep_retention_link_cb(void *arg)
+{
+    rmt_group_t *group = (rmt_group_t *)arg;
+    int group_id = group->group_id;
+    sleep_retention_module_t module = group->sleep_retention_module;
+    esp_err_t err = sleep_retention_entries_create(rmt_reg_retention_info[group_id].regdma_entry_array,
+                                                   rmt_reg_retention_info[group_id].array_size,
+                                                   REGDMA_LINK_PRI_RMT, module);
+    ESP_RETURN_ON_ERROR(err, TAG, "create retention link failed");
+    return ESP_OK;
+}
+
+void rmt_create_retention_module(rmt_group_t *group)
+{
+    sleep_retention_module_t module = group->sleep_retention_module;
+
+    _lock_acquire(&s_platform.mutex);
+    if (group->retention_link_created == false) {
+        if (sleep_retention_module_allocate(module) != ESP_OK) {
+            // even though the sleep retention module create failed, RMT driver should still work, so just warning here
+            ESP_LOGW(TAG, "create retention module failed, power domain can't turn off");
+        } else {
+            group->retention_link_created = true;
+        }
+    }
+    _lock_release(&s_platform.mutex);
+}
+#endif // RMT_USE_RETENTION_LINK

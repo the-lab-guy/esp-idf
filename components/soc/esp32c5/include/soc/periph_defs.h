@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -21,8 +21,7 @@ typedef enum {
     PERIPH_UART1_MODULE,
     PERIPH_USB_DEVICE_MODULE,  // USB Serial Jtag
     PERIPH_I2C0_MODULE,
-    PERIPH_I2C1_MODULE,
-    PERIPH_I2S1_MODULE,
+    PERIPH_I2S_MODULE,
     PERIPH_TIMG0_MODULE,
     PERIPH_TIMG1_MODULE,
     PERIPH_UHCI0_MODULE,

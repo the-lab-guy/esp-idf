@@ -14,6 +14,7 @@ set(priv_requires esp_driver_gpio esp_mm)  # usb_phy driver relies on gpio drive
 
 if(CONFIG_SOC_USB_OTG_SUPPORTED)
     list(APPEND srcs "hcd_dwc.c"
+                     "enum.c"
                      "hub.c"
                      "usb_helpers.c"
                      "usb_host.c"
@@ -33,3 +34,7 @@ idf_component_register(SRCS ${srcs}
                        PRIV_INCLUDE_DIRS ${priv_includes}
                        PRIV_REQUIRES ${priv_requires}
                        )
+
+if(CONFIG_COMPILER_STATIC_ANALYZER AND CMAKE_C_COMPILER_ID STREQUAL "GNU") # TODO GCC-366 (segfault)
+    set_property(SOURCE usb_host.c PROPERTY COMPILE_FLAGS -fno-analyzer)
+endif()

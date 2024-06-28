@@ -26,7 +26,7 @@ First, let’s take a look at the includes:
 #include "esp_gatt_common_api.h"
 #include "sdkconfig.h"
 ```
-These includes are required for the FreeRTOS and underlaying system components to run, including the logging functionality and a library to store data in non-volatile flash memory. We are interested in `"esp_bt.h"`, `"esp_bt_main.h"`, `"esp_gap_ble_api.h"` and `"esp_gatts_api.h"`, which expose the BLE APIs required to implement this example.
+These includes are required for the FreeRTOS and underlying system components to run, including the logging functionality and a library to store data in non-volatile flash memory. We are interested in `"esp_bt.h"`, `"esp_bt_main.h"`, `"esp_gap_ble_api.h"` and `"esp_gatts_api.h"`, which expose the BLE APIs required to implement this example.
 
 * `esp_bt.h`: implements BT controller and VHCI configuration procedures from the host side.
 * `esp_bt_main.h`: implements initialization and enabling of the Bluedroid stack.
@@ -62,8 +62,8 @@ The entry point to this example is the app_main() function:
         ESP_LOGE(GATTS_TAG, "%s enable controller failed", __func__);
         return;
     }
-    esp_bluedroid_config_t bluedroid_cfg = BT_BLUEDROID_INIT_CONFIG_DEFAULT();
-    ret = esp_bluedroid_init_with_cfg(&bluedroid_cfg);
+
+    ret = esp_bluedroid_init();
     if (ret) {
         ESP_LOGE(GATTS_TAG, "%s init bluetooth failed", __func__);
         return;
@@ -132,8 +132,7 @@ There are four Bluetooth modes supported:
 After the initialization of the BT controller, the Bluedroid stack, which includes the common definitions and APIs for both BT Classic and BLE, is initialized and enabled by using:
 
 ```c
-esp_bluedroid_config_t bluedroid_cfg = BT_BLUEDROID_INIT_CONFIG_DEFAULT();
-ret = esp_bluedroid_init_with_cfg(&bluedroid_cfg);
+ret = esp_bluedroid_init();
 ret = esp_bluedroid_enable();
 ```
 The Bluetooth stack is up and running at this point in the program flow, however the functionality of the application has not been defined yet. The functionality is defined by reacting to events such as what happens when another device tries to read or write parameters and establish a connection. The two main managers of events are the GAP and GATT event handlers. The application needs to register a callback function for each event handler in order to let the application know which functions are going to handle the GAP and GATT events:
@@ -188,13 +187,15 @@ struct gatts_profile_inst {
 The Application Profiles are stored in an array and corresponding callback functions `gatts_profile_a_event_handler()` and `gatts_profile_b_event_handler()` are assigned. Different applications on the GATT client use different interfaces, represented by the gatts_if parameter. For initialization, this parameter is set to `ESP_GATT_IF_NONE`, which means that the Application Profile is not linked to any client yet.
 
 ```c
+/* One gatt-based profile one app_id and one gatts_if, this array will store the gatts_if returned by ESP_GATTS_REG_EVT */
 static struct gatts_profile_inst gl_profile_tab[PROFILE_NUM] = {
     [PROFILE_A_APP_ID] = {
         .gatts_cb = gatts_profile_a_event_handler,
-        .gatts_if = ESP_GATT_IF_NONE,
+        .gatts_if = ESP_GATT_IF_NONE,       /* Not get the gatt_if, so initial is ESP_GATT_IF_NONE */
+    },
     [PROFILE_B_APP_ID] = {
-        .gatts_cb = gatts_profile_b_event_handler,
-        .gatts_if = ESP_GATT_IF_NONE,
+        .gatts_cb = gatts_profile_b_event_handler,                   /* This demo does not implement, similar as profile A */
+        .gatts_if = ESP_GATT_IF_NONE,       /* Not get the gatt_if, so initial is ESP_GATT_IF_NONE */
     },
 };
 ```
@@ -254,7 +255,7 @@ An advertising payload can be up to 31 bytes of data. It is possible the paramet
 It is possible to also advertise customized raw data using the `esp_ble_gap_config_adv_data_raw()`
 and `esp_ble_gap_config_scan_rsp_data_raw()` functions, which require to create and pass a buffer for both advertising data and scanning response data. In this example, the raw data is represented by the `raw_adv_data[]` and `raw_scan_rsp_data[]` arrays.
 
-Finally, to set the device name, the `esp_bt_dev_set_device_name()` function is used. The registering event handler is shown as follows:
+Finally, to set the device name, the `esp_ble_gap_set_device_name()` function is used. The registering event handler is shown as follows:
 
 ```c
 static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param) {
@@ -266,7 +267,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
          gl_profile_tab[PROFILE_A_APP_ID].service_id.id.uuid.len = ESP_UUID_LEN_16;
          gl_profile_tab[PROFILE_A_APP_ID].service_id.id.uuid.uuid.uuid16 = GATTS_SERVICE_UUID_TEST_A;
 
-         esp_bt_dev_set_device_name(TEST_DEVICE_NAME);
+         esp_ble_gap_set_device_name(TEST_DEVICE_NAME);
 #ifdef CONFIG_SET_RAW_ADV_DATA
         esp_err_t raw_adv_ret = esp_ble_gap_config_adv_data_raw(raw_adv_data, sizeof(raw_adv_data));
         if (raw_adv_ret){
@@ -720,7 +721,7 @@ case ESP_GATTS_WRITE_EVT: {
      ESP_LOGI(GATTS_TAG, "GATT_WRITE_EVT, conn_id %d, trans_id %d, handle %d", param->write.conn_id, param->write.trans_id, param->write.handle);
      if (!param->write.is_prep){
         ESP_LOGI(GATTS_TAG, "GATT_WRITE_EVT, value len %d, value :", param->write.len);
-        esp_log_buffer_hex(GATTS_TAG, param->write.value, param->write.len);
+        ESP_LOG_BUFFER_HEX(GATTS_TAG, param->write.value, param->write.len);
         if (gl_profile_tab[PROFILE_B_APP_ID].descr_handle == param->write.handle && param->write.len == 2){
             uint16_t descr_value= param->write.value[1]<<8 | param->write.value[0];
             if (descr_value == 0x0001){
@@ -919,7 +920,7 @@ Let’s take a look at the Executive Write function:
 ```c
 void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param){
     if (param->exec_write.exec_write_flag == ESP_GATT_PREP_WRITE_EXEC){
-        esp_log_buffer_hex(GATTS_TAG, prepare_write_env->prepare_buf, prepare_write_env->prepare_len);
+        ESP_LOG_BUFFER_HEX(GATTS_TAG, prepare_write_env->prepare_buf, prepare_write_env->prepare_len);
     }
     else{
         ESP_LOGI(GATTS_TAG,"ESP_GATT_PREP_WRITE_CANCEL");
@@ -936,7 +937,7 @@ The executive write is used to either confirm or cancel the write procedure done
 
 ```c
 if (param->exec_write.exec_write_flag == ESP_GATT_PREP_WRITE_EXEC){
-   esp_log_buffer_hex(GATTS_TAG,
+   ESP_LOG_BUFFER_HEX(GATTS_TAG,
                       prepare_write_env->prepare_buf,
                       prepare_write_env->prepare_len);
  }

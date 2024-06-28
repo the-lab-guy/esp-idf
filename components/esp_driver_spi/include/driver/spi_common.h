@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2010-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2010-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -89,9 +89,10 @@ typedef spi_common_dma_t spi_dma_chan_t;
  *
  * You can use this structure to specify the GPIO pins of the bus. Normally, the driver will use the
  * GPIO matrix to route the signals. An exception is made when all signals either can be routed through
- * the IO_MUX or are -1. In that case, the IO_MUX is used, allowing for >40MHz speeds.
+ * the IO_MUX or are -1. In that case, the IO_MUX is used. On ESP32, using GPIO matrix will bring about 25ns of input
+ * delay, which may cause incorrect read for >40MHz speeds.
  *
- * @note Be advised that the slave driver does not use the quadwp/quadhd lines and fields in spi_bus_config_t refering to these lines will be ignored and can thus safely be left uninitialized.
+ * @note Be advised that the slave driver does not use the quadwp/quadhd lines and fields in spi_bus_config_t referring to these lines will be ignored and can thus safely be left uninitialized.
  */
 typedef struct {
     union {
@@ -165,6 +166,25 @@ esp_err_t spi_bus_initialize(spi_host_device_t host_id, const spi_bus_config_t *
  *         - ESP_OK                on success
  */
 esp_err_t spi_bus_free(spi_host_device_t host_id);
+
+/**
+ * @brief Helper function for malloc DMA capable memory for SPI driver
+ *
+ * @note This API will take care of the cache and hardware alignment internally.
+ *       To free/release memory allocated by this helper function, simply calling `free()`
+ *
+ * @param[in]  size          Size in bytes, the amount of memory to allocate
+ * @param[out] out_ptr       Pointer to the memory if allocated successfully
+ * @param[in]  extra_heap_caps Extra heap caps based on MALLOC_CAP_DMA
+ * @param[out] actual_size   Optional, Actual size for allocation in bytes, when the size you specified doesn't meet the internal alignment requirements,
+ *                           This value might be bigger than the size you specified. Set NULL if don't care this value.
+ *
+ * @return
+ *        - ESP_ERR_INVALID_ARG     Invalid argument
+ *        - ESP_ERR_NO_MEM          No enough memory for allocation
+ *        - ESP_OK                  on success
+ */
+esp_err_t spi_bus_dma_memory_malloc(size_t size, void **out_ptr, uint32_t extra_heap_caps, size_t *actual_size);
 
 #ifdef __cplusplus
 }

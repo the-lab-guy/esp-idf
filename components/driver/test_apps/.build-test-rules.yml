@@ -17,6 +17,10 @@ components/driver/test_apps/i2s_test_apps/legacy_i2s_driver:
 components/driver/test_apps/legacy_adc_driver:
   disable:
     - if: SOC_ADC_SUPPORTED != 1
+  disable_test:
+    - if: IDF_TARGET == "esp32p4"
+      temporary: true
+      reason: lack of runners, TODO IDF-9573
   depends_components:
     - efuse
     - esp_driver_i2s
@@ -25,12 +29,21 @@ components/driver/test_apps/legacy_adc_driver:
     - components/driver/deprecated/**/*adc*
 
 components/driver/test_apps/legacy_i2c_driver:
+  disable:
+    - if: IDF_TARGET == "esp32c5"
+      temporary: true
+      reason: not support yet # TODO: [ESP32C5] IDF-8694
   disable_test:
     - if: IDF_TARGET == "esp32p4"
       temporary: true
       reason: lack of runner
   depends_filepatterns:
     - components/driver/i2c/**
+    # Following dependency is needed because they might increase lazy installed memory
+    # that can cause sleep retention memory leak check failed.
+    - components/ieee802154/**
+    - components/esp_coex/**
+    - components/esp_phy/**
 
 components/driver/test_apps/legacy_mcpwm_driver:
   disable:
@@ -65,10 +78,6 @@ components/driver/test_apps/legacy_sigma_delta_driver:
 components/driver/test_apps/legacy_timer_driver:
   disable:
     - if: SOC_GPTIMER_SUPPORTED != 1
-  disable_test:
-    - if: IDF_TARGET == "esp32p4"
-      temporary: true
-      reason: test not pass, should be re-enable # TODO: IDF-8962
   depends_filepatterns:
     - components/driver/deprecated/**/*timer*
 

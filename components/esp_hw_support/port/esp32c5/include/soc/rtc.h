@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include "soc/soc.h"
 #include "soc/clk_tree_defs.h"
+#include "sdkconfig.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -184,15 +185,6 @@ void rtc_clk_init(rtc_clk_config_t cfg);
  */
 soc_xtal_freq_t rtc_clk_xtal_freq_get(void);
 
-/**
- * @brief Update XTAL frequency
- *
- * Updates the XTAL value stored in RTC_XTAL_FREQ_REG. Usually this value is ignored
- * after startup.
- *
- * @param xtal_freq New frequency value
- */
-void rtc_clk_xtal_freq_update(soc_xtal_freq_t xtal_freq);
 
 /**
  * @brief Enable or disable 32 kHz XTAL oscillator
@@ -414,15 +406,6 @@ uint64_t rtc_time_slowclk_to_us(uint64_t rtc_cycles, uint32_t period);
 uint64_t rtc_time_get(void);
 
 /**
- * @brief Busy loop until next RTC_SLOW_CLK cycle
- *
- * This function returns not earlier than the next RTC_SLOW_CLK clock cycle.
- * In some cases (e.g. when RTC_SLOW_CLK cycle is very close), it may return
- * one RTC_SLOW_CLK cycle later.
- */
-void rtc_clk_wait_for_slow_cycle(void);
-
-/**
  * @brief Enable the rtc digital 8M clock
  *
  * This function is used to enable the digital rtc 8M clock to support peripherals.
@@ -449,13 +432,6 @@ bool rtc_dig_8m_enabled(void);
  * @return Frequency of the clock in Hz
  */
 uint32_t rtc_clk_freq_cal(uint32_t cal_val);
-
-/**
- * @brief Possible main XTAL frequency values. TODO: To be removed!
- */
-typedef soc_xtal_freq_t rtc_xtal_freq_t;
-#define RTC_XTAL_FREQ_40M SOC_XTAL_FREQ_40M                 //!< 40 MHz XTAL
-#define RTC_XTAL_FREQ_48M SOC_XTAL_FREQ_48M                 //!< 48 MHz XTAL
 
 #ifdef __cplusplus
 }

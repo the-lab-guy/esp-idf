@@ -35,6 +35,7 @@ USUAL_TO_FORMAL = {
     'esp32c5': 'ESP32-C5',
     'esp32h2': 'ESP32-H2',
     'esp32p4': 'ESP32-P4',
+    'esp32c61': 'ESP32-C61',
     'linux': 'Linux',
 }
 
@@ -48,6 +49,7 @@ FORMAL_TO_USUAL = {
     'ESP32-C5': 'esp32c5',
     'ESP32-H2': 'esp32h2',
     'ESP32-P4': 'esp32p4',
+    'ESP32-C61': 'esp32c61',
     'Linux': 'linux',
 }
 
@@ -259,7 +261,7 @@ def check_test_scripts(
 
         if _app.verified_targets == actual_verified_targets:
             return True
-        elif _app.verified_targets == sorted(actual_verified_targets + bypass_check_test_targets or []):  # type: ignore
+        elif not (set(_app.verified_targets) - set(actual_verified_targets + (bypass_check_test_targets or []))):
             print(f'WARNING: bypass test script check on {_app.app_dir} for targets {bypass_check_test_targets} ')
             return True
 
@@ -424,9 +426,10 @@ if __name__ == '__main__':
         if check_all:
             check_dirs = {IDF_PATH}
             _exclude_dirs = [os.path.join(IDF_PATH, 'tools', 'unit-test-app'),
-                             os.path.join(IDF_PATH, 'tools', 'test_build_system', 'build_test_app')]
+                             os.path.join(IDF_PATH, 'tools', 'test_build_system', 'build_test_app'),
+                             os.path.join(IDF_PATH, 'examples', 'get-started', 'sample_project')]
         else:
-            _exclude_dirs = []
+            _exclude_dirs = [os.path.join(IDF_PATH, 'examples', 'get-started', 'sample_project')]
 
         extra_default_build_targets_list: List[str] = []
         bypass_check_test_targets_list: List[str] = []

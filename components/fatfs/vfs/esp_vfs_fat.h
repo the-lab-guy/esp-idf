@@ -17,9 +17,19 @@ extern "C" {
 #endif
 
 /**
+ * @brief Configuration structure for esp_vfs_fat_register
+ */
+typedef struct {
+    const char* base_path; /*!< Path prefix where FATFS should be registered, */
+    const char* fat_drive; /*!< FATFS drive specification; if only one drive is used, can be an empty string. */
+    size_t max_files;      /*!< Maximum number of files which can be open at the same time. */
+} esp_vfs_fat_conf_t;
+
+/**
  * @brief Register FATFS with VFS component
  *
  * This function registers given FAT drive in VFS, at the specified base path.
+ * Input arguments are held in esp_vfs_fat_conf_t structure.
  * If only one drive is used, fat_drive argument can be an empty string.
  * Refer to FATFS library documentation on how to specify FAT drive.
  * This function also allocates FATFS structure which should be used for f_mount
@@ -29,17 +39,14 @@ extern "C" {
  *       POSIX and C standard library IO function with FATFS. You need to mount
  *       desired drive into FATFS separately.
  *
- * @param base_path  path prefix where FATFS should be registered
- * @param fat_drive  FATFS drive specification; if only one drive is used, can be an empty string
- * @param max_files  maximum number of files which can be open at the same time
+ * @param conf  pointer to esp_vfs_fat_conf_t configuration structure
  * @param[out] out_fs  pointer to FATFS structure which can be used for FATFS f_mount call is returned via this argument.
  * @return
  *      - ESP_OK on success
  *      - ESP_ERR_INVALID_STATE if esp_vfs_fat_register was already called
  *      - ESP_ERR_NO_MEM if not enough memory or too many VFSes already registered
  */
-esp_err_t esp_vfs_fat_register(const char* base_path, const char* fat_drive,
-        size_t max_files, FATFS** out_fs);
+esp_err_t esp_vfs_fat_register_cfg(const esp_vfs_fat_conf_t* conf, FATFS** out_fs);
 
 /**
  * @brief Un-register FATFS from VFS
@@ -394,7 +401,45 @@ esp_err_t esp_vfs_fat_spiflash_unmount_ro(const char* base_path, const char* par
  */
 esp_err_t esp_vfs_fat_info(const char* base_path, uint64_t* out_total_bytes, uint64_t* out_free_bytes);
 
+/**
+ * @brief Create a file with contiguous space at given path
+ *
+ * @note The file cannot exist before calling this function (or the file size has to be 0)
+ *       For more information see documentation for `f_expand` from FATFS library
+ *
+ * @param base_path  Base path of the partition examined (e.g. "/spiflash")
+ * @param full_path  Full path of the file (e.g. "/spiflash/ABC.TXT")
+ * @param size       File size expanded to, number of bytes in size to prepare or allocate for the file
+ * @param alloc_now  True == allocate space now, false == prepare to allocate -- see `f_expand` from FATFS
+ * @return
+ *      - ESP_OK on success
+ *      - ESP_ERR_INVALID_ARG if invalid arguments (e.g. any of arguments are NULL or size lower or equal to 0)
+ *      - ESP_ERR_INVALID_STATE if partition not found
+ *      - ESP_FAIL if another FRESULT error (saved in errno)
+ */
+esp_err_t esp_vfs_fat_create_contiguous_file(const char* base_path, const char* full_path, uint64_t size, bool alloc_now);
+
+/**
+ * @brief Test if a file is contiguous in the FAT filesystem
+ *
+ * @param base_path  Base path of the partition examined (e.g. "/spiflash")
+ * @param full_path  Full path of the file (e.g. "/spiflash/ABC.TXT")
+ * @param[out] is_contiguous  True == allocate space now, false == prepare to allocate -- see `f_expand` from FATFS
+ * @return
+ *      - ESP_OK on success
+ *      - ESP_ERR_INVALID_ARG if invalid arguments (e.g. any of arguments are NULL)
+ *      - ESP_ERR_INVALID_STATE if partition not found
+ *      - ESP_FAIL if another FRESULT error (saved in errno)
+ */
+esp_err_t esp_vfs_fat_test_contiguous_file(const char* base_path, const char* full_path, bool* is_contiguous);
+
 /** @cond */
+/**
+ * @deprecated Please use `esp_vfs_fat_register_cfg` instead
+ */
+esp_err_t esp_vfs_fat_register(const char* base_path, const char* fat_drive,
+        size_t max_files, FATFS** out_fs);
+
 /**
  * @deprecated Please use `esp_vfs_fat_spiflash_mount_rw_wl` instead
  */

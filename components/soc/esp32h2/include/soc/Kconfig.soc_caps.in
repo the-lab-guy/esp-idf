@@ -43,6 +43,10 @@ config SOC_TWAI_SUPPORTED
     bool
     default y
 
+config SOC_PHY_SUPPORTED
+    bool
+    default y
+
 config SOC_BT_SUPPORTED
     bool
     default y
@@ -123,6 +127,10 @@ config SOC_SYSTIMER_SUPPORTED
     bool
     default y
 
+config SOC_SUPPORT_COEXISTENCE
+    bool
+    default y
+
 config SOC_AES_SUPPORTED
     bool
     default y
@@ -171,6 +179,10 @@ config SOC_APM_SUPPORTED
     bool
     default y
 
+config SOC_APM_CTRL_FILTER_SUPPORTED
+    bool
+    default y
+
 config SOC_PMU_SUPPORTED
     bool
     default y
@@ -204,6 +216,22 @@ config SOC_SPI_FLASH_SUPPORTED
     default y
 
 config SOC_RNG_SUPPORTED
+    bool
+    default y
+
+config SOC_LIGHT_SLEEP_SUPPORTED
+    bool
+    default y
+
+config SOC_DEEP_SLEEP_SUPPORTED
+    bool
+    default y
+
+config SOC_MODEM_CLOCK_SUPPORTED
+    bool
+    default y
+
+config SOC_PM_SUPPORTED
     bool
     default y
 
@@ -355,6 +383,10 @@ config SOC_INT_PLIC_SUPPORTED
     bool
     default y
 
+config SOC_CPU_HAS_CSR_PC
+    bool
+    default y
+
 config SOC_CPU_BREAKPOINTS_NUM
     int
     default 4
@@ -419,6 +451,10 @@ config SOC_GDMA_SUPPORT_ETM
     bool
     default y
 
+config SOC_GDMA_SUPPORT_SLEEP_RETENTION
+    bool
+    default y
+
 config SOC_ETM_GROUPS
     int
     default 1
@@ -455,15 +491,11 @@ config SOC_GPIO_SUPPORT_ETM
     bool
     default y
 
-config SOC_GPIO_ETM_EVENTS_PER_GROUP
-    int
-    default 8
-
-config SOC_GPIO_ETM_TASKS_PER_GROUP
-    int
-    default 8
-
 config SOC_GPIO_SUPPORT_RTC_INDEPENDENT
+    bool
+    default y
+
+config SOC_LP_IO_CLOCK_IS_INDEPENDENT
     bool
     default y
 
@@ -491,6 +523,14 @@ config SOC_GPIO_CLOCKOUT_BY_GPIO_MATRIX
     bool
     default y
 
+config SOC_CLOCKOUT_HAS_SOURCE_GATE
+    bool
+    default y
+
+config SOC_GPIO_CLOCKOUT_CHANNEL_NUM
+    int
+    default 3
+
 config SOC_RTCIO_PIN_COUNT
     int
     default 8
@@ -498,6 +538,10 @@ config SOC_RTCIO_PIN_COUNT
 config SOC_RTCIO_HOLD_SUPPORTED
     bool
     default y
+
+config SOC_RTCIO_VALID_RTCIO_MASK
+    hex
+    default 0x7F80
 
 config SOC_DEDIC_GPIO_OUT_CHANNELS_NUM
     int
@@ -520,6 +564,10 @@ config SOC_ANA_CMPR_INTR_SHARE_WITH_GPIO
     default y
 
 config SOC_I2C_NUM
+    int
+    default 2
+
+config SOC_HP_I2C_NUM
     int
     default 2
 
@@ -568,6 +616,10 @@ config SOC_I2C_SLAVE_SUPPORT_I2CRAM_ACCESS
     default y
 
 config SOC_I2C_SLAVE_SUPPORT_SLAVE_UNMATCH
+    bool
+    default y
+
+config SOC_I2C_SUPPORT_SLEEP_RETENTION
     bool
     default y
 
@@ -740,6 +792,10 @@ config SOC_RMT_SUPPORT_XTAL
     default y
 
 config SOC_RMT_SUPPORT_RC_FAST
+    bool
+    default y
+
+config SOC_RMT_SUPPORT_SLEEP_RETENTION
     bool
     default y
 
@@ -931,6 +987,22 @@ config SOC_SPI_SUPPORT_CLK_RC_FAST
     bool
     default y
 
+config SOC_SPI_SCT_SUPPORTED
+    bool
+    default y
+
+config SOC_SPI_SCT_REG_NUM
+    int
+    default 14
+
+config SOC_SPI_SCT_BUFFER_NUM_MAX
+    bool
+    default y
+
+config SOC_SPI_SCT_CONF_BITLEN_MAX
+    hex
+    default 0x3FFFA
+
 config SOC_MEMSPI_IS_INDEPENDENT
     bool
     default y
@@ -1055,7 +1127,15 @@ config SOC_TIMER_SUPPORT_ETM
     bool
     default y
 
+config SOC_TIMER_SUPPORT_SLEEP_RETENTION
+    bool
+    default y
+
 config SOC_MWDT_SUPPORT_XTAL
+    bool
+    default y
+
+config SOC_MWDT_SUPPORT_SLEEP_RETENTION
     bool
     default y
 
@@ -1107,6 +1187,10 @@ config SOC_EFUSE_ECDSA_USE_HARDWARE_K
     bool
     default y
 
+config SOC_EFUSE_ECDSA_KEY
+    bool
+    default y
+
 config SOC_SECURE_BOOT_V2_RSA
     bool
     default y
@@ -1143,6 +1227,10 @@ config SOC_CRYPTO_DPA_PROTECTION_SUPPORTED
     bool
     default y
 
+config SOC_ECDSA_USES_MPI
+    bool
+    default y
+
 config SOC_UART_NUM
     int
     default 2
@@ -1172,6 +1260,10 @@ config SOC_UART_SUPPORT_WAKEUP_INT
     default y
 
 config SOC_UART_SUPPORT_FSM_TX_WAIT_SEND
+    bool
+    default y
+
+config SOC_UART_SUPPORT_SLEEP_RETENTION
     bool
     default y
 
@@ -1288,6 +1380,14 @@ config SOC_TEMPERATURE_SENSOR_SUPPORT_XTAL
     default y
 
 config SOC_TEMPERATURE_SENSOR_INTR_SUPPORT
+    bool
+    default y
+
+config SOC_TEMPERATURE_SENSOR_SUPPORT_ETM
+    bool
+    default y
+
+config SOC_RNG_CLOCK_IS_INDEPENDENT
     bool
     default y
 

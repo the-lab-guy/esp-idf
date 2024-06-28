@@ -9,7 +9,6 @@
 #include <stdatomic.h>
 #include "esp_log.h"
 #include "hal/usb_serial_jtag_ll.h"
-#include "hal/usb_fsls_phy_ll.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/ringbuf.h"
@@ -136,7 +135,7 @@ static void usb_serial_jtag_isr_handler_default(void *arg)
     }
 
     if (usbjtag_intr_status & USB_SERIAL_JTAG_INTR_SERIAL_OUT_RECV_PKT) {
-        // read rx buffer(max length is 64), and send avaliable data to ringbuffer.
+        // read rx buffer(max length is 64), and send available data to ringbuffer.
         // Ensure the rx buffer size is larger than RX_MAX_SIZE.
         usb_serial_jtag_ll_clr_intsts_mask(USB_SERIAL_JTAG_INTR_SERIAL_OUT_RECV_PKT);
         uint32_t rx_fifo_len = usb_serial_jtag_ll_read_rxfifo(p_usb_serial_jtag_obj->rx_data_buf, USB_SER_JTAG_RX_MAX_SIZE);
@@ -156,15 +155,15 @@ esp_err_t usb_serial_jtag_driver_install(usb_serial_jtag_driver_config_t *usb_se
     ESP_RETURN_ON_FALSE((usb_serial_jtag_config->rx_buffer_size > USB_SER_JTAG_RX_MAX_SIZE), ESP_ERR_INVALID_ARG, USB_SERIAL_JTAG_TAG, "RX buffer prepared is so small, should larger than 64");
     ESP_RETURN_ON_FALSE((usb_serial_jtag_config->tx_buffer_size > 0), ESP_ERR_INVALID_ARG, USB_SERIAL_JTAG_TAG, "TX buffer is not prepared");
     p_usb_serial_jtag_obj = (usb_serial_jtag_obj_t*) heap_caps_calloc(1, sizeof(usb_serial_jtag_obj_t), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-    p_usb_serial_jtag_obj->rx_buf_size = usb_serial_jtag_config->rx_buffer_size;
-    p_usb_serial_jtag_obj->tx_buf_size = usb_serial_jtag_config->tx_buffer_size;
-    p_usb_serial_jtag_obj->tx_stash_cnt = 0;
-    p_usb_serial_jtag_obj->spinlock = (portMUX_TYPE)portMUX_INITIALIZER_UNLOCKED;
     if (p_usb_serial_jtag_obj == NULL) {
         ESP_LOGE(USB_SERIAL_JTAG_TAG, "memory allocate error");
         err = ESP_ERR_NO_MEM;
         goto _exit;
     }
+    p_usb_serial_jtag_obj->rx_buf_size = usb_serial_jtag_config->rx_buffer_size;
+    p_usb_serial_jtag_obj->tx_buf_size = usb_serial_jtag_config->tx_buffer_size;
+    p_usb_serial_jtag_obj->tx_stash_cnt = 0;
+    p_usb_serial_jtag_obj->spinlock = (portMUX_TYPE)portMUX_INITIALIZER_UNLOCKED;
 
     p_usb_serial_jtag_obj->rx_ring_buf = xRingbufferCreate(p_usb_serial_jtag_obj->rx_buf_size, RINGBUF_TYPE_BYTEBUF);
     if (p_usb_serial_jtag_obj->rx_ring_buf == NULL) {
@@ -187,7 +186,12 @@ esp_err_t usb_serial_jtag_driver_install(usb_serial_jtag_driver_config_t *usb_se
     atomic_store(&p_usb_serial_jtag_obj->fifo_status, FIFO_IDLE);
 
     // Configure PHY
-    usb_fsls_phy_ll_int_jtag_enable(&USB_SERIAL_JTAG);
+#if USB_SERIAL_JTAG_LL_EXT_PHY_SUPPORTED
+    usb_serial_jtag_ll_phy_enable_external(false);  // Use internal PHY
+    usb_serial_jtag_ll_phy_enable_pad(true);        // Enable USB PHY pads
+#else // USB_SERIAL_JTAG_LL_EXT_PHY_SUPPORTED
+    usb_serial_jtag_ll_phy_set_defaults();          // External PHY not supported. Set default values.
+#endif // USB_WRAP_LL_EXT_PHY_SUPPORTED
 
     usb_serial_jtag_ll_clr_intsts_mask(USB_SERIAL_JTAG_INTR_SERIAL_IN_EMPTY |
                                        USB_SERIAL_JTAG_INTR_SERIAL_OUT_RECV_PKT);
@@ -214,7 +218,7 @@ int usb_serial_jtag_read_bytes(void* buf, uint32_t length, TickType_t ticks_to_w
         return 0;
     }
 
-    // Recieve new data from ISR
+    // Receive new data from ISR
     data = (uint8_t*) xRingbufferReceiveUpTo(p_usb_serial_jtag_obj->rx_ring_buf, &data_read_len, (TickType_t) ticks_to_wait, length);
     if (data == NULL) {
         // If there is no data received from ringbuffer, return 0 directly.

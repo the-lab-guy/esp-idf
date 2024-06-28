@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -8,7 +8,6 @@
 
 #include "esp_bit_defs.h"
 
-// TODO: [ESP32C5] IDF-8824
 /* Analog function control register */
 #define I2C_MST_ANA_CONF0_REG          0x600AF818
 #define I2C_MST_BBPLL_STOP_FORCE_HIGH  (BIT(2))

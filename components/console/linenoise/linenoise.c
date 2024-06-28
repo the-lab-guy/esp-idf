@@ -107,7 +107,12 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdio_ext.h>
+#include "sdkconfig.h"
+#if !CONFIG_IDF_TARGET_LINUX
+// On Linux, we don't need __fbufsize (see comments below), and
+// __fbufsize not available on MacOS (which is also considered "Linux" target)
+#include <stdio_ext.h> // for __fbufsize
+#endif
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
@@ -173,6 +178,7 @@ enum KEY_ACTION{
 	CTRL_U = 21,        /* Ctrl+u */
 	CTRL_W = 23,        /* Ctrl+w */
 	ESC = 27,           /* Escape */
+	UNIT_SEP = 31,      /* ctrl-_ */
 	BACKSPACE =  127    /* Backspace */
 };
 
@@ -216,9 +222,14 @@ bool linenoiseIsDumbMode(void) {
 }
 
 static void flushWrite(void) {
+// On Linux, we set stdout to unbuffered mode to facilitate interaction with tools.
+// Performance on Linux is not considered as critical as on chip targets. Additionally,
+// MacOS does not have __fbufsize.
+#if !CONFIG_IDF_TARGET_LINUX
     if (__fbufsize(stdout) > 0) {
         fflush(stdout);
     }
+#endif
     fsync(fileno(stdout));
 }
 
@@ -571,7 +582,7 @@ static void refreshMultiLine(struct linenoiseState *l) {
     int rows = (plen+l->len+l->cols-1)/l->cols; /* rows used by current buf. */
     int rpos = (plen+l->oldpos+l->cols)/l->cols; /* cursor relative row. */
     int rpos2; /* rpos after refresh. */
-    int col; /* colum position, zero-based. */
+    int col; /* column position, zero-based. */
     int old_rows = l->maxrows;
     int j;
     int fd = fileno(stdout);
@@ -626,7 +637,7 @@ static void refreshMultiLine(struct linenoiseState *l) {
     rpos2 = (plen+l->pos+l->cols)/l->cols; /* current cursor relative row. */
     lndebug("rpos2 %d", rpos2);
 
-    /* Go up till we reach the expected positon. */
+    /* Go up till we reach the expected position. */
     if (rows-rpos2 > 0) {
         lndebug("go-up %d", rows-rpos2);
         snprintf(seq,64,"\x1b[%dA", rows-rpos2);
@@ -787,7 +798,7 @@ void linenoiseEditBackspace(struct linenoiseState *l) {
     }
 }
 
-/* Delete the previosu word, maintaining the cursor at the start of the
+/* Delete the previous word, maintaining the cursor at the start of the
  * current word. */
 void linenoiseEditDeletePrevWord(struct linenoiseState *l) {
     size_t old_pos = l->pos;
@@ -1121,15 +1132,23 @@ static int linenoiseDumb(char* buf, size_t buflen, const char* prompt) {
         int c = fgetc(stdin);
         if (c == '\n') {
             break;
-        } else if (c >= 0x1c && c <= 0x1f){
-            continue; /* consume arrow keys */
-        } else if (c == BACKSPACE || c == 0x8) {
+        } else if (c == BACKSPACE || c == CTRL_H) {
             if (count > 0) {
                 buf[count - 1] = 0;
-                count --;
+                count--;
+
+                /* Only erase symbol echoed from stdin. */
+                fputs("\x08 ", stdout); /* Windows CMD: erase symbol under cursor */
+                flushWrite();
+            } else {
+                /* Consume backspace if the command line is empty to avoid erasing the prompt */
+                continue;
             }
-            fputs("\x08 ", stdout); /* Windows CMD: erase symbol under cursor */
-            flushWrite();
+
+        } else if (c <= UNIT_SEP) {
+            /* Consume all character that are non printable (the backspace
+             * case is handled above) */
+            continue;
         } else {
             buf[count] = c;
             ++count;

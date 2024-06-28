@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2010-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2010-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -23,10 +23,15 @@
 #elif CONFIG_IDF_TARGET_ESP32C6
 #include "esp32c6/rom/rtc.h"
 #include "esp_private/esp_pmu.h"
+#elif CONFIG_IDF_TARGET_ESP32C61
+#include "esp32c61/rom/rtc.h"
+#include "esp_private/esp_pmu.h"
 #elif CONFIG_IDF_TARGET_ESP32H2
 #include "esp32h2/rom/rtc.h"
 #elif CONFIG_IDF_TARGET_ESP32P4
 #include "esp32p4/rom/rtc.h"
+#elif CONFIG_IDF_TARGET_ESP32C5
+#include "esp32c5/rom/rtc.h"
 #endif
 #include "esp_log.h"
 #include "esp_rom_sys.h"
@@ -57,12 +62,16 @@ void bootloader_clock_configure(void)
     REG_WRITE(RTC_XTAL_FREQ_REG, (xtal_freq_mhz) | ((xtal_freq_mhz) << 16));
 }
 
-void esp_clk_init(void)
+void esp_rtc_init(void)
 {
-    s_warn();
 #if SOC_PMU_SUPPORTED
     pmu_init();
 #endif
+}
+
+void esp_clk_init(void)
+{
+    s_warn();
 }
 
 void esp_perip_clk_init(void)

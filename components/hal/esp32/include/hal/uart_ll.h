@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -30,7 +30,7 @@ extern "C" {
 // The timeout calibration factor when using ref_tick
 #define UART_LL_TOUT_REF_FACTOR_DEFAULT (8)
 
-#define UART_LL_MIN_WAKEUP_THRESH (2)
+#define UART_LL_MIN_WAKEUP_THRESH (3)
 #define UART_LL_INTR_MASK         (0x7ffff) //All interrupt mask
 
 // Define UART interrupts
@@ -312,7 +312,7 @@ FORCE_INLINE_ATTR void uart_ll_read_rxfifo(uart_dev_t *hw, uint8_t *buf, uint32_
  *
  * @param  hw Beginning address of the peripheral registers.
  * @param  buf The data buffer.
- * @param  wr_len The data length needs to be writen.
+ * @param  wr_len The data length needs to be written.
  *
  * @return None
  */
@@ -535,7 +535,7 @@ FORCE_INLINE_ATTR void uart_ll_set_tx_idle_num(uart_dev_t *hw, uint32_t idle_num
 }
 
 /**
- * @brief  Configure the transmiter to send break chars.
+ * @brief  Configure the transmitter to send break chars.
  *
  * @param  hw Beginning address of the peripheral registers.
  * @param  break_num The number of the break chars need to be send.
@@ -600,7 +600,7 @@ FORCE_INLINE_ATTR void uart_ll_get_hw_flow_ctrl(uart_dev_t *hw, uart_hw_flowcont
  * @brief  Configure the software flow control.
  *
  * @param  hw Beginning address of the peripheral registers.
- * @param  flow_ctrl The UART sofware flow control settings.
+ * @param  flow_ctrl The UART software flow control settings.
  * @param  sw_flow_ctrl_en Set true to enable software flow control, otherwise set it false.
  *
  * @return None.
@@ -692,7 +692,9 @@ FORCE_INLINE_ATTR void uart_ll_set_dtr_active_level(uart_dev_t *hw, int level)
  */
 FORCE_INLINE_ATTR void uart_ll_set_wakeup_thrd(uart_dev_t *hw, uint32_t wakeup_thrd)
 {
-    hw->sleep_conf.active_threshold = wakeup_thrd  - UART_LL_MIN_WAKEUP_THRESH;
+    // System would wakeup when the number of positive edges of RxD signal is larger than or equal to (UART_ACTIVE_THRESHOLD+2)
+    // Note: On ESP32, the minimum UART wakeup threshold is 2 + 1 = 3 (UART_ACTIVE_THRESHOLD set to 0 leads to consecutive triggering wakeup)
+    hw->sleep_conf.active_threshold = wakeup_thrd  - (UART_LL_MIN_WAKEUP_THRESH - 1);
 }
 
 /**
@@ -834,7 +836,7 @@ FORCE_INLINE_ATTR void uart_ll_get_at_cmd_char(uart_dev_t *hw, uint8_t *cmd_char
  */
 FORCE_INLINE_ATTR uint32_t uart_ll_get_wakeup_thrd(uart_dev_t *hw)
 {
-    return hw->sleep_conf.active_threshold + UART_LL_MIN_WAKEUP_THRESH;
+    return hw->sleep_conf.active_threshold + (UART_LL_MIN_WAKEUP_THRESH - 1);
 }
 
 /**
@@ -892,7 +894,7 @@ FORCE_INLINE_ATTR bool uart_ll_is_hw_cts_en(uart_dev_t *hw)
  * @brief Configure TX signal loop back to RX module, just for the testing purposes
  *
  * @param  hw Beginning address of the peripheral registers.
- * @param  loop_back_en Set ture to enable the loop back function, else set it false.
+ * @param  loop_back_en Set true to enable the loop back function, else set it false.
  *
  * @return None
  */

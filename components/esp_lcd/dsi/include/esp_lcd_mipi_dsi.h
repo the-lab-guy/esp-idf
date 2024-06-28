@@ -21,7 +21,7 @@ extern "C" {
  */
 typedef struct {
     int bus_id;                              /*!< Select which DSI controller, index from 0 */
-    uint8_t num_data_lanes;                  /*!< Number of data lanes */
+    uint8_t num_data_lanes;                  /*!< Number of data lanes, if set to 0, the driver will fallback to use maximum number of lanes */
     mipi_dsi_phy_clock_source_t phy_clk_src; /*!< MIPI DSI PHY clock source */
     uint32_t lane_bit_rate_mbps;             /*!< Lane bit rate in Mbps */
 } esp_lcd_dsi_bus_config_t;
@@ -84,6 +84,8 @@ typedef struct {
     mipi_dsi_dpi_clock_source_t dpi_clk_src;   /*!< MIPI DSI DPI clock source */
     uint32_t dpi_clock_freq_mhz;               /*!< DPI clock frequency in MHz */
     lcd_color_rgb_pixel_format_t pixel_format; /*!< Pixel format that used by the MIPI LCD device */
+    uint8_t num_fbs;                           /*!< Number of screen-sized frame buffers that allocated by the driver
+                                                    By default (set to either 0 or 1) only one frame buffer will be created */
     esp_lcd_video_timing_t video_timing;       /*!< Video timing */
     /// Extra configuration flags for MIPI DSI DPI panel
     struct extra_flags {
@@ -107,6 +109,19 @@ typedef struct {
 esp_err_t esp_lcd_new_panel_dpi(esp_lcd_dsi_bus_handle_t bus, const esp_lcd_dpi_panel_config_t *panel_config, esp_lcd_panel_handle_t *ret_panel);
 
 /**
+ * @brief Get the address of the frame buffer(s) that allocated by the driver
+ *
+ * @param[in] dpi_panel MIPI DPI panel handle, returned from esp_lcd_new_panel_dpi()
+ * @param[in] fb_num Number of frame buffer(s) to get. This value must be the same as the number of the followed parameters.
+ * @param[out] fb0 Address of the frame buffer 0 (first frame buffer)
+ * @param[out] ... List of other frame buffers if any
+ * @return
+ *      - ESP_ERR_INVALID_ARG: Get frame buffer address failed because of invalid argument
+ *      - ESP_OK: Get frame buffer address successfully
+ */
+esp_err_t esp_lcd_dpi_panel_get_frame_buffer(esp_lcd_panel_handle_t dpi_panel, uint32_t fb_num, void **fb0, ...);
+
+/**
  * @brief Set pre-defined pattern to the screen for testing or debugging purpose
  *
  * @param[in] dpi_panel MIPI DPI panel handle, returned from esp_lcd_new_panel_dpi()
@@ -125,20 +140,35 @@ typedef struct {
 } esp_lcd_dpi_panel_event_data_t;
 
 /**
- * @brief Declare the prototype of the function that will be invoked when DPI panel finishes transferring color data
+ * @brief A general function callback prototype for DPI panel driver
  *
  * @param[in] panel LCD panel handle, which is created by factory API like esp_lcd_new_panel_dpi()
  * @param[in] edata DPI panel event data, fed by driver
  * @param[in] user_ctx User data
  * @return Whether a high priority task has been waken up by this function
  */
-typedef bool (*esp_lcd_dpi_panel_color_trans_done_cb_t)(esp_lcd_panel_handle_t panel, esp_lcd_dpi_panel_event_data_t *edata, void *user_ctx);
+typedef bool (*esp_lcd_dpi_panel_general_cb_t)(esp_lcd_panel_handle_t panel, esp_lcd_dpi_panel_event_data_t *edata, void *user_ctx);
+
+/**
+ * @brief Declare the prototype of the function that will be invoked
+ *        when driver finishes coping user's color buffer to frame buffer
+ */
+typedef esp_lcd_dpi_panel_general_cb_t esp_lcd_dpi_panel_color_trans_done_cb_t;
+
+/**
+ * @brief Declare the prototype of the function that will be invoked
+ *        when driver finishes refreshing the frame buffer to the screen
+ */
+typedef esp_lcd_dpi_panel_general_cb_t esp_lcd_dpi_panel_refresh_done_cb_t;
 
 /**
  * @brief Type of LCD DPI panel callbacks
  */
 typedef struct {
-    esp_lcd_dpi_panel_color_trans_done_cb_t on_color_trans_done; /*!< Callback invoked when color data transfer has finished */
+    esp_lcd_dpi_panel_color_trans_done_cb_t on_color_trans_done; /*!< Invoked when user's color buffer copied to the internal frame buffer.
+                                                                      This is an indicator that the draw buffer can be recycled safely.
+                                                                      But doesn't mean the draw buffer finishes the refreshing to the screen. */
+    esp_lcd_dpi_panel_refresh_done_cb_t on_refresh_done;         /*!< Invoked when the internal frame buffer finishes refreshing to the screen */
 } esp_lcd_dpi_panel_event_callbacks_t;
 
 /**

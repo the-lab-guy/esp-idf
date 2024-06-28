@@ -242,6 +242,20 @@ void rtc_clk_8m_enable(bool clk_8m_en);
 bool rtc_clk_8m_enabled(void);
 
 /**
+ * @brief Enable or disable LP_PLL_CLK
+ * Note that to be able to use LP_PLL clock, besides turn on the power for LP_PLL, also needs to turn on the power for
+ * the LP_PLL clock source (either XTAL32K or RC32K).
+ * @param enable true to enable, false to disable
+ */
+void rtc_clk_lp_pll_enable(bool enable);
+
+/**
+ * @brief Select clock source for LP_PLL_CLK
+ * @param clk_src clock source (one of soc_lp_pll_clk_src_t values)
+ */
+void rtc_clk_lp_pll_src_set(soc_lp_pll_clk_src_t clk_src);
+
+/**
  * @brief Select source for RTC_SLOW_CLK
  * @param clk_src clock source (one of soc_rtc_slow_clk_src_t values)
  */
@@ -419,15 +433,6 @@ uint64_t rtc_time_slowclk_to_us(uint64_t rtc_cycles, uint32_t period);
 uint64_t rtc_time_get(void);
 
 /**
- * @brief Busy loop until next RTC_SLOW_CLK cycle
- *
- * This function returns not earlier than the next RTC_SLOW_CLK clock cycle.
- * In some cases (e.g. when RTC_SLOW_CLK cycle is very close), it may return
- * one RTC_SLOW_CLK cycle later.
- */
-void rtc_clk_wait_for_slow_cycle(void);
-
-/**
  * @brief Enable the rtc digital 8M clock
  *
  * This function is used to enable the digital rtc 8M clock to support peripherals.
@@ -480,7 +485,7 @@ void rtc_clk_apll_enable(bool enable);
  *
  * @return
  *      - 0 Failed
- *      - else Sucess
+ *      - else Success
  */
 uint32_t rtc_clk_apll_coeff_calc(uint32_t freq, uint32_t *_o_div, uint32_t *_sdm0, uint32_t *_sdm1, uint32_t *_sdm2);
 

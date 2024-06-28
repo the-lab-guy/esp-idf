@@ -9,6 +9,11 @@
 #include "hal/ecdsa_hal.h"
 #include "hal/efuse_hal.h"
 
+// Need to remove in IDF-8621
+#if CONFIG_IDF_TARGET_ESP32C5
+#include "soc/keymng_reg.h"
+#endif
+
 #ifdef SOC_KEY_MANAGER_SUPPORTED
 #include "hal/key_mgr_hal.h"
 #endif
@@ -22,6 +27,12 @@ static void configure_ecdsa_periph(ecdsa_hal_config_t *conf)
 
     if (conf->use_km_key == 0) {
         efuse_hal_set_ecdsa_key(conf->efuse_key_blk);
+
+// Need to remove in IDF-8621
+#if CONFIG_IDF_TARGET_ESP32C5
+        REG_SET_FIELD(KEYMNG_STATIC_REG, KEYMNG_USE_EFUSE_KEY, 1);
+#endif
+
 #if SOC_KEY_MANAGER_SUPPORTED
         key_mgr_hal_set_key_usage(ESP_KEY_MGR_ECDSA_KEY, ESP_KEY_MGR_USE_EFUSE_KEY);
 #endif
@@ -38,6 +49,19 @@ static void configure_ecdsa_periph(ecdsa_hal_config_t *conf)
     if (conf->mode != ECDSA_MODE_EXPORT_PUBKEY) {
         ecdsa_ll_set_z_mode(conf->sha_mode);
     }
+
+#if SOC_ECDSA_SUPPORT_DETERMINISTIC_MODE
+    ecdsa_ll_set_k_type(conf->sign_type);
+
+    if (conf->sign_type == ECDSA_K_TYPE_DETERMINISITIC) {
+        ecdsa_ll_set_deterministic_loop(conf->loop_number);
+    }
+#endif
+}
+
+bool ecdsa_hal_get_operation_result(void)
+{
+    return ecdsa_ll_get_operation_result();
 }
 
 void ecdsa_hal_gen_signature(ecdsa_hal_config_t *conf, const uint8_t *hash,
@@ -112,7 +136,7 @@ int ecdsa_hal_verify_signature(ecdsa_hal_config_t *conf, const uint8_t *hash, co
         ;
     }
 
-    int res = ecdsa_ll_get_verification_result();
+    bool res = ecdsa_hal_get_operation_result();
 
     return (res ? 0 : -1);
 }
@@ -152,3 +176,12 @@ void ecdsa_hal_export_pubkey(ecdsa_hal_config_t *conf, uint8_t *pub_x, uint8_t *
     }
 }
 #endif /* SOC_ECDSA_SUPPORT_EXPORT_PUBKEY */
+
+#ifdef SOC_ECDSA_SUPPORT_DETERMINISTIC_MODE
+
+bool ecdsa_hal_det_signature_k_check(void)
+{
+    return (ecdsa_ll_check_k_value() == 0);
+}
+
+#endif /* SOC_ECDSA_SUPPORT_DETERMINISTIC_MODE */

@@ -102,15 +102,18 @@ static void select_rtc_slow_clk(slow_clk_sel_t slow_clk)
             cal_val = (uint32_t)(cal_dividend / rtc_clk_slow_freq_get_hz());
         }
     } while (cal_val == 0);
-    ESP_EARLY_LOGD(TAG, "RTC_SLOW_CLK calibration value: %d", cal_val);
+    ESP_EARLY_LOGD(TAG, "RTC_SLOW_CLK calibration value: %" PRIu32, cal_val);
     esp_clk_slowclk_cal_set(cal_val);
+}
+
+void esp_rtc_init(void)
+{
+    rtc_config_t cfg = RTC_CONFIG_DEFAULT();
+    rtc_init(cfg);
 }
 
 __attribute__((weak)) void esp_clk_init(void)
 {
-    rtc_config_t cfg = RTC_CONFIG_DEFAULT();
-    rtc_init(cfg);
-
 #if (CONFIG_APP_COMPATIBLE_PRE_V2_1_BOOTLOADERS || CONFIG_APP_INIT_CLK)
     /* Check the bootloader set the XTAL frequency.
 

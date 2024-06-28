@@ -1,13 +1,11 @@
 /*
- * SPDX-FileCopyrightText: 2017-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-
 #pragma once
 
 #include <stdint.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -18,13 +16,25 @@ typedef volatile struct {
             uint32_t clk_en                    :    1;
             uint32_t modem_ant_force_sel_bt    :    1;
             uint32_t modem_ant_force_sel_wifi  :    1;
-            uint32_t reserved3                     :    29;
+            uint32_t fpga_debug_clkswitch      :    1;
+            uint32_t fpga_debug_clk80          :    1;
+            uint32_t fpga_debug_clk40          :    1;
+            uint32_t fpga_debug_clk20          :    1;
+            uint32_t fpga_debug_clk10          :    1;
+            uint32_t modem_mem_mode_force      :    1;
+            uint32_t reserved9                 :    23;
         };
         uint32_t val;
     } test_conf;
     union {
         struct {
-            uint32_t reserved0                     :    21;
+            uint32_t pwdet_sar_clock_ena       :    1;
+            uint32_t pwdet_clk_div_num         :    8;
+            uint32_t clk_tx_dac_inv_ena        :    1;
+            uint32_t clk_rx_adc_inv_ena        :    1;
+            uint32_t clk_pwdet_adc_inv_ena     :    1;
+            uint32_t clk_i2c_mst_sel_160m      :    1;
+            uint32_t reserved13                :    8;
             uint32_t clk_data_dump_mux         :    1;
             uint32_t clk_etm_en                :    1;
             uint32_t clk_zb_apb_en             :    1;
@@ -99,7 +109,7 @@ typedef volatile struct {
             uint32_t rst_btbb                  :    1;
             uint32_t reserved19                    :    3;
             uint32_t rst_etm                   :    1;
-            uint32_t reserved23                    :    1;
+            uint32_t rst_zbmac_apb             :    1;
             uint32_t rst_zbmac                 :    1;
             uint32_t rst_modem_ecb             :    1;
             uint32_t rst_modem_ccm             :    1;

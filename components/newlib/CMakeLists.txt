@@ -4,6 +4,11 @@ if(${target} STREQUAL "linux")
     return() # This component is not supported by the POSIX/Linux simulator
 endif()
 
+set(include_dirs "platform_include")
+if(CMAKE_C_COMPILER_ID MATCHES "Clang")  # TODO LLVM-330
+    list(APPEND include_dirs "clang_include")
+endif()
+
 if(BOOTLOADER_BUILD)
     # Bootloader builds need the platform_include directory (for assert.h), but nothing else
     idf_component_register(INCLUDE_DIRS platform_include)
@@ -14,6 +19,7 @@ set(srcs
     "abort.c"
     "assert.c"
     "heap.c"
+    "flockfile.c"
     "locks.c"
     "poll.c"
     "pthread.c"
@@ -29,7 +35,10 @@ set(srcs
     "realpath.c"
     "scandir.c"
 )
-set(include_dirs platform_include)
+
+if(CONFIG_STDATOMIC_S32C1I_SPIRAM_WORKAROUND)
+    list(APPEND srcs "port/xtensa/stdatomic_s32c1i.c")
+endif()
 
 if(CONFIG_SPIRAM_CACHE_WORKAROUND)
     set(ldfragments "esp32-spiram-rom-functions-c.lf")
@@ -49,12 +58,18 @@ target_link_libraries(${COMPONENT_LIB} INTERFACE c m ${CONFIG_COMPILER_RT_LIB_NA
 
 set_source_files_properties(heap.c PROPERTIES COMPILE_FLAGS -fno-builtin)
 
+if(CONFIG_STDATOMIC_S32C1I_SPIRAM_WORKAROUND)
+    set_source_files_properties("port/xtensa/stdatomic_s32c1i.c"
+                                PROPERTIES COMPILE_FLAGS "-mno-disable-hardware-atomics")
+endif()
+
 # Forces the linker to include heap, syscall, pthread, assert, and retargetable locks from this component,
 # instead of the implementations provided by newlib.
 list(APPEND EXTRA_LINK_FLAGS "-u newlib_include_heap_impl")
 list(APPEND EXTRA_LINK_FLAGS "-u newlib_include_syscalls_impl")
 list(APPEND EXTRA_LINK_FLAGS "-u newlib_include_pthread_impl")
 list(APPEND EXTRA_LINK_FLAGS "-u newlib_include_assert_impl")
+list(APPEND EXTRA_LINK_FLAGS "-u newlib_include_getentropy_impl")
 target_link_libraries(${COMPONENT_LIB} INTERFACE "${EXTRA_LINK_FLAGS}")
 
 # Forces the linker to include newlib_init.c

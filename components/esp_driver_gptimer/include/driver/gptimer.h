@@ -28,6 +28,9 @@ typedef struct {
                                               if set to 0, the driver will try to allocate an interrupt with a relative low priority (1,2,3) */
     struct {
         uint32_t intr_shared: 1;         /*!< Set true, the timer interrupt number can be shared with other peripherals */
+        uint32_t backup_before_sleep: 1; /*!< If set, the driver will backup/restore the GPTimer registers before/after entering/exist sleep mode.
+                                              By this approach, the system can power off GPTimer's power domain.
+                                              This can save power, but at the expense of more RAM being consumed */
     } flags;                             /*!< GPTimer config flags*/
 } gptimer_config_t;
 
@@ -169,9 +172,11 @@ typedef struct {
 /**
  * @brief Set alarm event actions for GPTimer.
  *
- * @note This function is allowed to run within ISR context, so that user can set new alarm action immediately in the ISR callback.
+ * @note This function is allowed to run within ISR context, so you can update new alarm action immediately in any ISR callback.
  * @note If `CONFIG_GPTIMER_CTRL_FUNC_IN_IRAM` is enabled, this function will be placed in the IRAM by linker,
  *       makes it possible to execute even when the Flash Cache is disabled.
+ *       In this case, please also ensure the `gptimer_alarm_config_t` instance is placed in the static data section
+ *       instead of in the read-only data section. e.g.: `static gptimer_alarm_config_t alarm_config = { ... };`
  *
  * @param[in] timer Timer handle created by `gptimer_new_timer`
  * @param[in] config Alarm configuration, especially, set config to NULL means disabling the alarm function

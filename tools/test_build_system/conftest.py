@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 import datetime
 import logging
@@ -11,7 +11,11 @@ from tempfile import mkdtemp
 
 import pytest
 from _pytest.fixtures import FixtureRequest
-from test_build_system_helpers import EXT_IDF_PATH, EnvDict, IdfPyFunc, get_idf_build_env, run_idf_py
+from test_build_system_helpers import EnvDict
+from test_build_system_helpers import EXT_IDF_PATH
+from test_build_system_helpers import get_idf_build_env
+from test_build_system_helpers import IdfPyFunc
+from test_build_system_helpers import run_idf_py
 
 
 # Pytest hook used to check if the test has passed or failed, from a fixture.
@@ -27,7 +31,7 @@ def pytest_runtest_makereport(item: typing.Any, call: typing.Any) -> typing.Gene
 
 def should_clean_test_dir(request: FixtureRequest) -> bool:
     # Only remove the test directory if the test has passed
-    return getattr(request.node, 'passed', False)
+    return getattr(request.node, 'passed', False) or request.config.getoption('cleanup_idf_copy', False)
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -35,6 +39,10 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         '--work-dir', action='store', default=None,
         help='Directory for temporary files. If not specified, an OS-specific '
              'temporary directory will be used.'
+    )
+    parser.addoption(
+        '--cleanup-idf-copy', action='store_true',
+        help='Always clean up the IDF copy after the test. By default, the copy is cleaned up only if the test passes.'
     )
 
 
@@ -161,7 +169,8 @@ def idf_copy(func_work_dir: Path, request: FixtureRequest) -> typing.Generator[P
     ignore = shutil.ignore_patterns(
         path_to.name,
         # also ignore the build directories which may be quite large
-        '**/build')
+        # plus ignore .git since it is causing trouble when removing on Windows
+        '**/build', '.git')
 
     logging.debug(f'copying {path_from} to {path_to}')
     shutil.copytree(path_from, path_to, ignore=ignore, symlinks=True)

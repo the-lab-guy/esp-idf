@@ -61,6 +61,35 @@ function(idf_build_unset_property property)
     idf_build_set_property(__BUILD_PROPERTIES "${build_properties}")
 endfunction()
 
+# idf_build_replace_option_from_property
+#
+# @brief Replace specified option with new one in a given property.
+#
+# @param[in] property_name the property in which to replace the options (ex.: COMPILE_OPTIONS, C_COMPILE_OPTIONS,..)
+#
+# @param[in] option_to_remove the option to be replaced
+# @param[in] new_option the option to replace with (if empty, the old option will be removed)
+#
+# Example usage:
+#   idf_build_replace_options_from_property(COMPILE_OPTIONS "-Werror" "-Werror=all")
+#   idf_build_replace_options_from_property(COMPILE_OPTIONS "-Wno-error=extra" "")
+#
+function(idf_build_replace_option_from_property property_name option_to_remove new_option)
+    idf_build_get_property(current_list_of_options ${property_name})
+
+    set(new_list_of_options)
+    foreach(option ${current_list_of_options})
+        if(option STREQUAL option_to_remove)
+            list(APPEND new_list_of_options "${new_option}")
+        else()
+            list(APPEND new_list_of_options "${option}")
+        endif()
+    endforeach()
+
+    # Set the updated list back
+    idf_build_set_property(${property_name} "${new_list_of_options}")
+endfunction()
+
 #
 # Retrieve the IDF_PATH repository's version, either using a version
 # file or Git revision. Sets the IDF_VER build property.
@@ -101,12 +130,13 @@ function(__build_set_default_build_specifications)
                                     "-fdata-sections"
                                     # warning-related flags
                                     "-Wall"
-                                    "-Werror=all"
+                                    "-Werror"
                                     "-Wno-error=unused-function"
                                     "-Wno-error=unused-variable"
                                     "-Wno-error=unused-but-set-variable"
                                     "-Wno-error=deprecated-declarations"
                                     "-Wextra"
+                                    "-Wno-error=extra"
                                     "-Wno-unused-parameter"
                                     "-Wno-sign-compare"
                                     # ignore multiple enum conversion warnings since gcc 11
@@ -262,13 +292,14 @@ endfunction()
 # Resolve the requirement component to the component target created for that component.
 #
 function(__build_resolve_and_add_req var component_target req type)
-    __component_get_target(_component_target ${req})
-    __component_get_property(_component_registered ${component_target} __COMPONENT_REGISTERED)
-    if(NOT _component_target OR NOT _component_registered)
-        message(FATAL_ERROR "Failed to resolve component '${req}'.")
+    __component_get_target(_req_target ${req})
+    __component_get_property(_req_registered ${_req_target} __COMPONENT_REGISTERED)
+    if(NOT _req_target OR NOT _req_registered)
+        __component_get_property(_component_name ${component_target} COMPONENT_NAME)
+        message(FATAL_ERROR "Failed to resolve component '${req}' required by component '${_component_name}'.")
     endif()
-    __component_set_property(${component_target} ${type} ${_component_target} APPEND)
-    set(${var} ${_component_target} PARENT_SCOPE)
+    __component_set_property(${component_target} ${type} ${_req_target} APPEND)
+    set(${var} ${_req_target} PARENT_SCOPE)
 endfunction()
 
 #
@@ -449,7 +480,7 @@ endfunction()
 #                       if PROJECT_DIR is set and CMAKE_SOURCE_DIR/sdkconfig if not
 # @param[in, optional] SDKCONFIG_DEFAULTS (single value) config defaults file to use for the build; defaults
 #                       to none (Kconfig defaults or previously generated config are used)
-# @param[in, optional] BUILD_DIR (single value) directory for build artifacts; defautls to CMAKE_BINARY_DIR
+# @param[in, optional] BUILD_DIR (single value) directory for build artifacts; defaults to CMAKE_BINARY_DIR
 # @param[in, optional] COMPONENTS (multivalue) select components to process among the components
 #                       known by the build system
 #                       (added via `idf_build_component`). This argument is used to trim the build.
@@ -516,9 +547,17 @@ macro(idf_build_process target)
         set(local_components_list_file ${build_dir}/local_components_list.temp.yml)
 
         set(__contents "components:\n")
-        foreach(__component_name ${components})
-            idf_component_get_property(__component_dir ${__component_name} COMPONENT_DIR)
-            set(__contents "${__contents}  - name: \"${__component_name}\"\n    path: \"${__component_dir}\"\n")
+        idf_build_get_property(build_component_targets BUILD_COMPONENT_TARGETS)
+        foreach(__build_component_target ${build_component_targets})
+            __component_get_property(__component_name ${__build_component_target} COMPONENT_NAME)
+            __component_get_property(__component_dir ${__build_component_target} COMPONENT_DIR)
+
+            # Exclude components could be passed with -DEXCLUDE_COMPONENTS
+            # after the call to __component_add finished in the last run.
+            # Need to check if the component is excluded again
+            if(NOT __component_name IN_LIST EXCLUDE_COMPONENTS)
+                set(__contents "${__contents}  - name: \"${__component_name}\"\n    path: \"${__component_dir}\"\n")
+            endif()
         endforeach()
 
         file(WRITE ${local_components_list_file} "${__contents}")

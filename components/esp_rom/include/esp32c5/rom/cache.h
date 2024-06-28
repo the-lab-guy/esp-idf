@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -36,6 +36,21 @@ extern "C" {
 #define MAX_ITAG_BLOCK_ITEMS            (MAX_ICACHE_SIZE / MAX_ICACHE_BANK_NUM / MAX_ICACHE_WAYS / MIN_CACHE_LINE_SIZE)
 #define MAX_ITAG_BANK_SIZE              (MAX_ITAG_BANK_ITEMS * TAG_SIZE)
 #define MAX_ITAG_BLOCK_SIZE             (MAX_ITAG_BLOCK_ITEMS * TAG_SIZE)
+
+typedef enum {
+    CACHE_LOCK_LOCK = BIT(0),
+    CACHE_LOCK_UNLOCK = BIT(1),
+} cache_lock_t;
+
+typedef enum {
+    CACHE_SYNC_INVALIDATE = BIT(0),
+    CACHE_SYNC_CLEAN = BIT(1),
+    CACHE_SYNC_WRITEBACK = BIT(2),
+    CACHE_SYNC_WRITEBACK_INVALIDATE = BIT(3),
+} cache_sync_t;
+
+#define CACHE_MAP_ROM_CACHE   BIT(2)
+#define CACHE_MAP_FLASH_CACHE BIT(4)
 
 typedef enum {
     CACHE_SIZE_HALF = 0,                /*!< 8KB for icache and dcache */
@@ -120,17 +135,21 @@ struct lock_config {
 };
 
 struct cache_internal_stub_table {
-    uint32_t (* icache_line_size)(void);
-    uint32_t (* icache_addr)(uint32_t addr);
-    uint32_t (* dcache_addr)(uint32_t addr);
-    void (* invalidate_icache_items)(uint32_t addr, uint32_t items);
-    void (* lock_icache_items)(uint32_t addr, uint32_t items);
-    void (* unlock_icache_items)(uint32_t addr, uint32_t items);
-    uint32_t (* suspend_icache_autoload)(void);
-    void (* resume_icache_autoload)(uint32_t autoload);
-    void (* freeze_icache_enable)(cache_freeze_mode_t mode);
-    void (* freeze_icache_disable)(void);
-    int (* op_addr)(uint32_t start_addr, uint32_t size, uint32_t cache_line_size, uint32_t max_sync_num, void(* cache_Iop)(uint32_t, uint32_t));
+    uint32_t (* cache_line_size)(uint32_t map);
+    uint32_t (* cache_addr)(uint32_t map, uint32_t addr);
+    void (* sync_cache_items)(uint32_t type, uint32_t map, uint32_t addr, uint32_t items);
+    void (* lock_cache_items)(uint32_t lock, uint32_t map, uint32_t addr, uint32_t items);
+    uint32_t (* suspend_cache_autoload)(void);
+    void (* resume_cache_autoload)(uint32_t autoload);
+    void (* freeze_cache_enable)(cache_freeze_mode_t mode);
+    void (* freeze_cache_disable)(void);
+    int (* op_addr)(uint32_t op_type,
+                    uint32_t map,
+                    uint32_t start_addr,
+                    uint32_t size,
+                    uint32_t cache_line_size,
+                    uint32_t max_sync_num,
+                    void(* cache_Iop)(uint32_t, uint32_t, uint32_t, uint32_t));
 };
 
 /* Defined in the interface file, default value is rom_default_cache_internal_table */
@@ -181,7 +200,7 @@ void ROM_Boot_Cache_Init(void);
   * @param uint32_t senitive : Config this page should apply flash encryption or not
   *
   * @param uint32_t ext_ram : DPORT_MMU_ACCESS_FLASH for flash, DPORT_MMU_INVALID for invalid. In
-  *                 esp32c5, external memory is always flash
+  *                 esp32c6, external memory is always flash
   *
   * @param  uint32_t vaddr : virtual address in CPU address space.
   *                              Can be Iram0,Iram1,Irom0,Drom0 and AHB buses address.
@@ -209,7 +228,7 @@ int Cache_MSPI_MMU_Set(uint32_t sensitive, uint32_t ext_ram, uint32_t vaddr, uin
   *        Please do not call this function in your SDK application.
   *
   * @param uint32_t ext_ram : DPORT_MMU_ACCESS_FLASH for flash, DPORT_MMU_INVALID for invalid. In
-  *                 esp32c5, external memory is always flash
+  *                 esp32c6, external memory is always flash
   *
   * @param  uint32_t vaddr : virtual address in CPU address space.
   *                              Can be DRam0, DRam1, DRom0, DPort and AHB buses address.
@@ -244,24 +263,6 @@ int Cache_Dbus_MMU_Set(uint32_t ext_ram, uint32_t vaddr, uint32_t paddr, uint32_
 void Cache_Get_Mode(struct cache_mode * mode);
 
 /**
-  * @brief Set cache page mode.
-  *
-  * @param mmu_page_mode_t
-  *
-  * @return None
-  */
-void MMU_Set_Page_Mode(mmu_page_mode_t pg_mode);
-
-/**
-  * @brief Get cache page mode.
-  *
-  * @param None
-  *
-  * @return page mode
-  */
-mmu_page_mode_t MMU_Get_Page_Mode(void);
-
-/**
   * @brief Invalidate the cache items for ICache.
   *        Operation will be done CACHE_LINE_SIZE aligned.
   *        If the region is not in ICache addr room, nothing will be done.
@@ -273,7 +274,7 @@ mmu_page_mode_t MMU_Get_Page_Mode(void);
   *
   * @return None
   */
-void Cache_Invalidate_ICache_Items(uint32_t addr, uint32_t items);
+void Cache_Sync_Items(uint32_t type, uint32_t map, uint32_t addr, uint32_t bytes);
 
 /**
   * @brief Invalidate the Cache items in the region from ICache or DCache.
@@ -289,6 +290,12 @@ void Cache_Invalidate_ICache_Items(uint32_t addr, uint32_t items);
   */
 int Cache_Invalidate_Addr(uint32_t addr, uint32_t size);
 
+int Cache_Clean_Addr(uint32_t addr, uint32_t size);
+
+int Cache_WriteBack_Addr(uint32_t addr, uint32_t size);
+
+int Cache_WriteBack_Invalidate_Addr(uint32_t addr, uint32_t size);
+
 /**
   * @brief Invalidate all cache items in ICache.
   *        Please do not call this function in your SDK application.
@@ -297,7 +304,13 @@ int Cache_Invalidate_Addr(uint32_t addr, uint32_t size);
   *
   * @return None
   */
-void Cache_Invalidate_ICache_All(void);
+void Cache_Invalidate_All(void);
+
+void Cache_Clean_All(void);
+
+void Cache_WriteBack_All(void);
+
+void Cache_WriteBack_Invalidate_All(void);
 
 /**
   * @brief Mask all buses through ICache and DCache.
@@ -317,7 +330,7 @@ void Cache_Mask_All(void);
   *
   * @return uint32_t : 0 for ICache not auto preload before suspend.
   */
-uint32_t Cache_Suspend_ICache_Autoload(void);
+uint32_t Cache_Suspend_Autoload(void);
 
 /**
   * @brief Resume ICache auto preload operation after some ICache operations.
@@ -327,7 +340,7 @@ uint32_t Cache_Suspend_ICache_Autoload(void);
   *
   * @return None.
   */
-void Cache_Resume_ICache_Autoload(uint32_t autoload);
+void Cache_Resume_Autoload(uint32_t autoload);
 
 /**
   * @brief Start an ICache manual preload, will suspend auto preload of ICache.
@@ -341,7 +354,7 @@ void Cache_Resume_ICache_Autoload(uint32_t autoload);
   *
   * @return uint32_t : 0 for ICache not auto preload before manual preload.
   */
-uint32_t Cache_Start_ICache_Preload(uint32_t addr, uint32_t size, uint32_t order);
+uint32_t Cache_Start_Preload(uint32_t addr, uint32_t size, uint32_t order);
 
 /**
   * @brief Return if the ICache manual preload done.
@@ -351,7 +364,7 @@ uint32_t Cache_Start_ICache_Preload(uint32_t addr, uint32_t size, uint32_t order
   *
   * @return uint32_t : 0 for ICache manual preload not done.
   */
-uint32_t Cache_ICache_Preload_Done(void);
+uint32_t Cache_Preload_Done(void);
 
 /**
   * @brief End the ICache manual preload to resume auto preload of ICache.
@@ -361,7 +374,7 @@ uint32_t Cache_ICache_Preload_Done(void);
   *
   * @return None
   */
-void Cache_End_ICache_Preload(uint32_t autoload);
+void Cache_End_Preload(uint32_t autoload);
 
 /**
   * @brief Config autoload parameters of ICache.
@@ -371,7 +384,7 @@ void Cache_End_ICache_Preload(uint32_t autoload);
   *
   * @return None
   */
-void Cache_Config_ICache_Autoload(const struct autoload_config * config);
+void Cache_Config_Autoload(const struct autoload_config * config);
 
 /**
   * @brief Enable auto preload for ICache.
@@ -381,7 +394,7 @@ void Cache_Config_ICache_Autoload(const struct autoload_config * config);
   *
   * @return None
   */
-void Cache_Enable_ICache_Autoload(void);
+void Cache_Enable_Autoload(void);
 
 /**
   * @brief Disable auto preload for ICache.
@@ -391,7 +404,7 @@ void Cache_Enable_ICache_Autoload(void);
   *
   * @return None
   */
-void Cache_Disable_ICache_Autoload(void);
+void Cache_Disable_Autoload(void);
 
 /**
   * @brief Config a group of prelock parameters of ICache.
@@ -402,7 +415,7 @@ void Cache_Disable_ICache_Autoload(void);
   * @return None
   */
 
-void Cache_Enable_ICache_PreLock(const struct lock_config *config);
+void Cache_Enable_PreLock(const struct lock_config *config);
 
 /**
   * @brief Disable a group of prelock parameters for ICache.
@@ -413,7 +426,7 @@ void Cache_Enable_ICache_PreLock(const struct lock_config *config);
   *
   * @return None
   */
-void Cache_Disable_ICache_PreLock(uint16_t group);
+void Cache_Disable_PreLock(uint16_t group);
 
 /**
   * @brief Lock the cache items for ICache.
@@ -427,21 +440,7 @@ void Cache_Disable_ICache_PreLock(uint16_t group);
   *
   * @return None
   */
-void Cache_Lock_ICache_Items(uint32_t addr, uint32_t items);
-
-/**
-  * @brief Unlock the cache items for ICache.
-  *        Operation will be done CACHE_LINE_SIZE aligned.
-  *        If the region is not in ICache addr room, nothing will be done.
-  *        Please do not call this function in your SDK application.
-  *
-  * @param  uint32_t addr: start address to unlock
-  *
-  * @param  uint32_t items: cache lines to unlock, items * cache_line_size should not exceed the bus address size(16MB/32MB/64MB)
-  *
-  * @return None
-  */
-void Cache_Unlock_ICache_Items(uint32_t addr, uint32_t items);
+int Cache_Lock_Items(uint32_t lock, uint32_t map, uint32_t addr, uint32_t items);
 
 /**
   * @brief Lock the cache items in tag memory for ICache or DCache.
@@ -454,7 +453,7 @@ void Cache_Unlock_ICache_Items(uint32_t addr, uint32_t items);
   * @return 0 for success
   *         1 for invalid argument
   */
-int Cache_Lock_Addr(uint32_t addr, uint32_t size);
+int Cache_Lock_Addr(uint32_t map, uint32_t addr, uint32_t size);
 
 /**
   * @brief Unlock the cache items in tag memory for ICache or DCache.
@@ -467,7 +466,7 @@ int Cache_Lock_Addr(uint32_t addr, uint32_t size);
   * @return 0 for success
   *         1 for invalid argument
   */
-int Cache_Unlock_Addr(uint32_t addr, uint32_t size);
+int Cache_Unlock_Addr(uint32_t map, uint32_t addr, uint32_t size);
 
 /**
   * @brief Disable ICache access for the cpu.
@@ -476,7 +475,7 @@ int Cache_Unlock_Addr(uint32_t addr, uint32_t size);
   *
   * @return uint32_t : auto preload enabled before
   */
-uint32_t Cache_Disable_ICache(void);
+uint32_t Cache_Disable_Cache(void);
 
 /**
   * @brief Enable ICache access for the cpu.
@@ -486,7 +485,7 @@ uint32_t Cache_Disable_ICache(void);
   *
   * @return None
   */
-void Cache_Enable_ICache(uint32_t autoload);
+void Cache_Enable_Cache(uint32_t autoload);
 
 /**
   * @brief Suspend ICache access for the cpu.
@@ -498,7 +497,7 @@ void Cache_Enable_ICache(uint32_t autoload);
   *
   * @return uint32_t : auto preload enabled before
   */
-uint32_t Cache_Suspend_ICache(void);
+uint32_t Cache_Suspend_Cache(void);
 
 /**
   * @brief Resume ICache access for the cpu.
@@ -508,7 +507,7 @@ uint32_t Cache_Suspend_ICache(void);
   *
   * @return None
   */
-void Cache_Resume_ICache(uint32_t autoload);
+void Cache_Resume_Cache(uint32_t autoload);
 
 /**
   * @brief Get ICache cache line size
@@ -517,7 +516,7 @@ void Cache_Resume_ICache(uint32_t autoload);
   *
   * @return uint32_t: 16, 32, 64 Byte
   */
-uint32_t Cache_Get_ICache_Line_Size(void);
+uint32_t Cache_Get_Line_Size(uint32_t map);
 
 /**
   * @brief Enable freeze for ICache.
@@ -528,7 +527,7 @@ uint32_t Cache_Get_ICache_Line_Size(void);
   *
   * @return None
   */
-void Cache_Freeze_ICache_Enable(cache_freeze_mode_t mode);
+void Cache_Freeze_Enable(cache_freeze_mode_t mode);
 
 /**
   * @brief Disable freeze for ICache.
@@ -536,7 +535,7 @@ void Cache_Freeze_ICache_Enable(cache_freeze_mode_t mode);
   *
   * @return None
   */
-void Cache_Freeze_ICache_Disable(void);
+void Cache_Freeze_Disable(void);
 
 /**
   * @brief Travel tag memory to run a call back function.
@@ -561,7 +560,7 @@ void Cache_Travel_Tag_Memory(struct cache_mode * mode, uint32_t filter_addr, voi
   *
   * @param  struct cache_mode * mode : the cache to calculate the virtual address and the cache mode.
   *
-  * @param  uint32_t tag : the tag part fo a tag item, 12-14 bits.
+  * @param  uint32_t tag : the tag part for a tag item, 12-14 bits.
   *
   * @param  uint32_t addr_offset : the virtual address offset of the cache ways.
   *
@@ -600,6 +599,10 @@ uint32_t Cache_Get_DROM_MMU_End(void);
  * @param drom_size The rodata data cache MMU page size
  */
 void Cache_Set_IDROM_MMU_Size(uint32_t irom_size, uint32_t drom_size);
+
+uint32_t Cache_Count_Flash_Pages(uint32_t * page0_mapped);
+
+uint32_t Cache_Flash_To_SPIRAM_Copy(uint32_t bus_start_addr, uint32_t start_page, uint32_t * page0_page);
 
 #define Cache_Dbus_MMU_Set(ext_ram, vaddr, paddr, psize, num, fixed) \
     Cache_MSPI_MMU_Set(ets_efuse_cache_encryption_enabled() ? SOC_MMU_SENSITIVE : 0, ext_ram, vaddr, paddr, psize, num, fixed)

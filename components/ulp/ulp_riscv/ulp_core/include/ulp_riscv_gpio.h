@@ -10,6 +10,7 @@
 extern "C" {
 #endif
 
+#include "sdkconfig.h"
 #include "soc/rtc_io_reg.h"
 #include "soc/sens_reg.h"
 #include "ulp_riscv_register_ops.h"
@@ -108,7 +109,7 @@ static inline uint8_t ulp_riscv_gpio_get_level(gpio_num_t gpio_num)
 
 static inline void ulp_riscv_gpio_set_output_mode(gpio_num_t gpio_num, rtc_io_out_mode_t mode)
 {
-    REG_SET_FIELD(RTC_IO_TOUCH_PAD0_REG + gpio_num * 4, RTC_IO_TOUCH_PAD0_DRV, mode);
+    REG_SET_FIELD(RTC_GPIO_PIN0_REG + gpio_num * 4, RTC_GPIO_PIN0_PAD_DRIVER, mode);
 }
 
 static inline void ulp_riscv_gpio_pullup(gpio_num_t gpio_num)
@@ -131,6 +132,8 @@ static inline void ulp_riscv_gpio_pulldown_disable(gpio_num_t gpio_num)
     CLEAR_PERI_REG_MASK(RTC_IO_TOUCH_PAD0_REG + gpio_num * 4, RTC_IO_TOUCH_PAD0_RDE);
 }
 
+#if CONFIG_ULP_RISCV_INTERRUPT_ENABLE
+
 /**
  * @brief Set RTC IO interrupt type and handler
  *
@@ -151,6 +154,8 @@ esp_err_t ulp_riscv_gpio_isr_register(gpio_num_t gpio_num, ulp_riscv_gpio_int_ty
  * @return              ESP_OK on success
  */
 esp_err_t ulp_riscv_gpio_isr_deregister(gpio_num_t gpio_num);
+
+#endif /* CONFIG_ULP_RISCV_INTERRUPT_ENABLE */
 
 #ifdef __cplusplus
 }

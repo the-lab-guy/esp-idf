@@ -12,6 +12,7 @@
 #include "esp32c5/rom/rtc.h"
 #include "esp32c5/rom/uart.h"
 #include "soc/rtc.h"
+#include "soc/soc_caps.h"
 #include "esp_cpu.h"
 #include "regi2c_ctrl.h"
 #include "soc/lp_clkrst_reg.h"
@@ -21,8 +22,10 @@
 #include "esp_rom_uart.h"
 #include "esp_private/esp_pmu.h"
 #include "hal/clk_tree_ll.h"
+#if SOC_MODEM_CLOCK_SUPPORTED
 #include "hal/modem_syscon_ll.h"
 #include "hal/modem_lpcon_ll.h"
+#endif
 #include "pmu_param.h"
 
 static const char *TAG = "rtc_clk_init";
@@ -44,16 +47,17 @@ static void rtc_clk_modem_clock_domain_active_state_icg_map_preinit(void)
     /* Configure modem ICG code in PMU_ACTIVE state */
     pmu_ll_hp_set_icg_modem(&PMU, PMU_MODE_HP_ACTIVE, PMU_HP_ICG_MODEM_CODE_ACTIVE);
 
+#if SOC_MODEM_CLOCK_SUPPORTED
     /* Disable clock gating for MODEM_APB, I2C_MST and LP_APB clock domains in PMU_ACTIVE state */
     modem_syscon_ll_set_modem_apb_icg_bitmap(&MODEM_SYSCON, BIT(PMU_HP_ICG_MODEM_CODE_ACTIVE));
     modem_lpcon_ll_set_i2c_master_icg_bitmap(&MODEM_LPCON, BIT(PMU_HP_ICG_MODEM_CODE_ACTIVE));
     modem_lpcon_ll_set_lp_apb_icg_bitmap(&MODEM_LPCON, BIT(PMU_HP_ICG_MODEM_CODE_ACTIVE));
+#endif
 
     /* Software trigger force update modem ICG code and ICG switch */
     pmu_ll_imm_update_dig_icg_modem_code(&PMU, true);
     pmu_ll_imm_update_dig_icg_switch(&PMU, true);
 }
-
 
 void rtc_clk_init(rtc_clk_config_t cfg)
 {
@@ -78,11 +82,9 @@ void rtc_clk_init(rtc_clk_config_t cfg)
     REG_SET_FIELD(PMU_HP_ACTIVE_HP_REGULATOR0_REG, PMU_HP_ACTIVE_HP_REGULATOR_DBIAS, HP_CALI_DBIAS);
     REG_SET_FIELD(PMU_HP_SLEEP_LP_REGULATOR0_REG, PMU_HP_SLEEP_LP_REGULATOR_DBIAS, LP_CALI_DBIAS);
 
-    clk_ll_rc_fast_tick_conf();
+    clk_ll_rc_fast_tick_conf(); // TODO: IDF-8642 Unnecessary or not?
 
-    soc_xtal_freq_t xtal_freq = cfg.xtal_freq;
-    esp_rom_output_tx_wait_idle(0);
-    rtc_clk_xtal_freq_update(xtal_freq);
+    // XTAL freq determined by efuse, and can be directly informed from register field PCR_CLK_XTAL_FREQ
 
     /* Set CPU frequency */
     rtc_clk_cpu_freq_get_config(&old_config);

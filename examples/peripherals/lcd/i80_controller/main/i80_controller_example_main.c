@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2021-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: CC0-1.0
  */
@@ -9,6 +9,7 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "esp_timer.h"
+#include "esp_heap_caps.h"
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_vendor.h"
 #include "esp_lcd_panel_ops.h"
@@ -18,7 +19,6 @@
 #include "driver/i2c.h"
 #include "esp_err.h"
 #include "esp_log.h"
-#include "esp_dma_utils.h"
 #include "lvgl.h"
 #if CONFIG_EXAMPLE_LCD_TOUCH_CONTROLLER_GT911
 #include "esp_lcd_touch_gt911.h"
@@ -93,8 +93,7 @@ static const char *TAG = "example";
 #define EXAMPLE_LVGL_TASK_STACK_SIZE   (4 * 1024)
 #define EXAMPLE_LVGL_TASK_PRIORITY     2
 
-// Supported alignment: 16, 32, 64. A higher alignment can enables higher burst transfer size, thus a higher i80 bus throughput.
-#define EXAMPLE_PSRAM_DATA_ALIGNMENT   64
+#define EXAMPLE_DMA_BURST_SIZE         64 // 16, 32, 64. Higher burst size can improve the performance when the DMA buffer comes from PSRAM
 
 static SemaphoreHandle_t lvgl_mux = NULL;
 
@@ -248,8 +247,7 @@ void example_init_i80_bus(esp_lcd_panel_io_handle_t *io_handle, void *user_ctx)
         },
         .bus_width = CONFIG_EXAMPLE_LCD_I80_BUS_WIDTH,
         .max_transfer_bytes = EXAMPLE_LCD_H_RES * 100 * sizeof(uint16_t),
-        .psram_trans_align = EXAMPLE_PSRAM_DATA_ALIGNMENT,
-        .sram_trans_align = 4,
+        .dma_burst_size = EXAMPLE_DMA_BURST_SIZE,
     };
     ESP_ERROR_CHECK(esp_lcd_new_i80_bus(&bus_config, &i80_bus));
 
@@ -445,14 +443,12 @@ void app_main(void)
     lv_init();
     // alloc draw buffers used by LVGL
     // it's recommended to choose the size of the draw buffer(s) to be at least 1/10 screen sized
-    lv_color_t *buf1 = NULL;
-    lv_color_t *buf2 = NULL;
-    uint32_t malloc_flags = 0;
+    uint32_t draw_buf_alloc_caps = 0;
 #if CONFIG_EXAMPLE_LCD_I80_COLOR_IN_PSRAM
-    malloc_flags |= ESP_DMA_MALLOC_FLAG_PSRAM;
-#endif // CONFIG_EXAMPLE_LCD_I80_COLOR_IN_PSRAM
-    ESP_ERROR_CHECK(esp_dma_malloc(EXAMPLE_LCD_H_RES * 100 * sizeof(lv_color_t), malloc_flags, (void *)&buf1, NULL));
-    ESP_ERROR_CHECK(esp_dma_malloc(EXAMPLE_LCD_H_RES * 100 * sizeof(lv_color_t), malloc_flags, (void *)&buf2, NULL));
+    draw_buf_alloc_caps |= MALLOC_CAP_SPIRAM;
+#endif
+    lv_color_t *buf1 = esp_lcd_i80_alloc_draw_buffer(io_handle, EXAMPLE_LCD_H_RES * 100 * sizeof(lv_color_t), draw_buf_alloc_caps);
+    lv_color_t *buf2 = esp_lcd_i80_alloc_draw_buffer(io_handle, EXAMPLE_LCD_H_RES * 100 * sizeof(lv_color_t), draw_buf_alloc_caps);
     assert(buf1);
     assert(buf2);
     ESP_LOGI(TAG, "buf1@%p, buf2@%p", buf1, buf2);

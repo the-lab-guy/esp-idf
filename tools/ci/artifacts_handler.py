@@ -41,6 +41,7 @@ TYPE_PATTERNS_DICT = {
         '**/build*/flasher_args.json',
         '**/build*/flash_project_args',
         '**/build*/config/sdkconfig.json',
+        '**/build*/sdkconfig',
         '**/build*/project_description.json',
         'list_job*.txt',
     ],
@@ -53,6 +54,7 @@ TYPE_PATTERNS_DICT = {
     ],
     ArtifactType.JUNIT_REPORTS: [
         'XUNIT_RESULT*.xml',
+        'build_summary*.xml',
     ],
     ArtifactType.MODIFIED_FILES_AND_COMPONENTS_REPORT: [
         'pipeline.env',

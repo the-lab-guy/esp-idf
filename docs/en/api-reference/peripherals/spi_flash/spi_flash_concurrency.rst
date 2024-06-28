@@ -13,7 +13,7 @@ The SPI0/1 bus is shared between the instruction & data cache (for firmware exec
 
 .. only:: SOC_SPI_MEM_SUPPORT_AUTO_SUSPEND
 
-    On {IDF_TARGET_NAME}, the config option :ref:`CONFIG_SPI_FLASH_AUTO_SUSPEND` (enabled by default) allows the cache to read flash concurrently with SPI1 operations. See :ref:`auto-suspend` for more details.
+    On {IDF_TARGET_NAME}, the config option :ref:`CONFIG_SPI_FLASH_AUTO_SUSPEND` allows the cache to read flash concurrently with SPI1 operations. This is an optional feature that depends on special SPI Flash models, hence disabled by default. See :ref:`auto-suspend` for more details.
 
     If this option is disabled, the caches must be disabled while reading/writing/erasing operations. There are some constraints using driver on the SPI1 bus, see :ref:`impact_disabled_cache`. These constraints will cause more IRAM/DRAM usages.
 
@@ -76,6 +76,13 @@ Non-IRAM-Safe Interrupt Handlers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If the ``ESP_INTR_FLAG_IRAM`` flag is not set when registering, the interrupt handler will not get executed when the caches are disabled. Once the caches are restored, the non-IRAM-safe interrupts will be re-enabled. After this moment, the interrupt handler will run normally again. This means that as long as caches are disabled, users will not see the corresponding hardware event happening.
+
+.. only:: SOC_DMA_CAN_ACCESS_FLASH
+
+    When DMA Read Data from Flash
+    -----------------------------
+
+    When DMA is reading data from Flash, erase/write operations from SPI1 take higher priority in hardware, resulting in unpredictable data read by DMA if auto-suspend is not enabled. It is recommended to stop DMA access to Flash before erasing or writing to it. If DMA cannot be stopped (for example, the LCD needs to continuously refresh image data stored in Flash), it is advisable to copy such data to PSRAM or internal SRAM.
 
 
 .. only:: SOC_SPI_MEM_SUPPORT_AUTO_SUSPEND

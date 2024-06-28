@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -16,8 +16,8 @@
 #include <stdbool.h>
 #include "soc/soc_caps.h"
 #include "soc/pcr_struct.h"
-#include "soc/lp_io_struct.h"
-#include "soc/lp_aon_struct.h"
+// #include "soc/lp_io_struct.h"
+// #include "soc/lp_aon_struct.h"
 #include "soc/pmu_struct.h"
 #include "hal/misc.h"
 #include "hal/assert.h"
@@ -43,6 +43,15 @@ typedef enum {
     RTCIO_LL_OUTPUT_NORMAL = 0,    /*!< RTCIO output mode is normal. */
     RTCIO_LL_OUTPUT_OD = 0x1,      /*!< RTCIO output mode is open-drain. */
 } rtcio_ll_out_mode_t;
+
+typedef enum {
+    RTCIO_INTR_DISABLE = 0,     /*!< Disable GPIO interrupt                             */
+    RTCIO_INTR_POSEDGE = 1,     /*!< GPIO interrupt type : rising edge                  */
+    RTCIO_INTR_NEGEDGE = 2,     /*!< GPIO interrupt type : falling edge                 */
+    RTCIO_INTR_ANYEDGE = 3,     /*!< GPIO interrupt type : both rising and falling edge */
+    RTCIO_INTR_LOW_LEVEL = 4,   /*!< GPIO interrupt type : input low level trigger      */
+    RTCIO_INTR_HIGH_LEVEL = 5,  /*!< GPIO interrupt type : input high level trigger     */
+} rtcio_ll_intr_type_t;
 
 /**
  * @brief Select a RTC IOMUX function for the RTC IO
@@ -323,7 +332,7 @@ static inline void rtcio_ll_force_unhold_all(void)
 static inline void rtcio_ll_wakeup_enable(int rtcio_num, rtcio_ll_wake_type_t type)
 {
     // TODO: [ESP32C5] IDF-8719
-    // LP_IO.pin[rtcio_num].wakeup_enable = 0x1;
+    // LP_IO.pin[rtcio_num].wakeup_enable = 1;
     // LP_IO.pin[rtcio_num].int_type = type;
     abort();
 }
@@ -449,6 +458,18 @@ static inline  void rtcio_ll_clear_interrupt_status(void)
     // TODO: [ESP32C5] IDF-8719
     // HAL_FORCE_MODIFY_U32_REG_FIELD(LP_IO.status_w1tc, status_w1tc, 0xff);
     abort();
+}
+
+/**
+ * Enable interrupt function and set interrupt type
+ *
+ * @param rtcio_num The index of rtcio. 0 ~ MAX(rtcio).
+ * @param type  Interrupt type on high level or low level.
+ */
+static inline void rtcio_ll_intr_enable(int rtcio_num, rtcio_ll_intr_type_t type)
+{
+    // TODO: [ESP32C5] IDF-8719
+    //LP_GPIO.pin[rtcio_num].int_type = type;
 }
 
 #ifdef __cplusplus

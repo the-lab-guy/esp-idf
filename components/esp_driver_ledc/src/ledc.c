@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -22,6 +22,7 @@
 #include "esp_rom_sys.h"
 #include "clk_ctrl_os.h"
 #include "esp_private/periph_ctrl.h"
+#include "esp_private/gpio.h"
 #include "esp_memory_utils.h"
 
 static __attribute__((unused)) const char *LEDC_TAG = "ledc";
@@ -35,7 +36,7 @@ static __attribute__((unused)) const char *LEDC_TAG = "ledc";
 #define LEDC_SLOW_CLK_UNINIT -1
 #define LEDC_TIMER_SPECIFIC_CLK_UNINIT -1
 
-// Precision degree only affects RC_FAST, other clock sources' frequences are fixed values
+// Precision degree only affects RC_FAST, other clock sources' frequencies are fixed values
 // For targets that do not support RC_FAST calibration, can only use its approx. value. Precision degree other than
 // APPROX will trigger LOGW during the call to `esp_clk_tree_src_get_freq_hz`.
 #if SOC_CLK_RC_FAST_SUPPORT_CALIBRATION
@@ -435,7 +436,7 @@ static uint32_t ledc_auto_clk_divisor(ledc_mode_t speed_mode, int freq_hz, uint3
     uint32_t div_param_timer = ledc_auto_timer_specific_clk_divisor(speed_mode, freq_hz, precision, clk_source);
 
     if (div_param_timer != LEDC_CLK_NOT_FOUND) {
-        /* The dividor is valid, no need try any other clock, return directly. */
+        /* The divider is valid, no need try any other clock, return directly. */
         ret = div_param_timer;
     }
 #endif
@@ -570,8 +571,8 @@ static esp_err_t ledc_set_timer_div(ledc_mode_t speed_mode, ledc_timer_t timer_n
 
         ESP_LOGD(LEDC_TAG, "In slow speed mode, global clk set: %d", glb_clk);
 
-#if !CONFIG_IDF_TARGET_ESP32P4 //depend on sleep support IDF-7528
         /* keep ESP_PD_DOMAIN_RC_FAST on during light sleep */
+#if SOC_LIGHT_SLEEP_SUPPORTED
         extern void esp_sleep_periph_use_8m(bool use_or_not);
         esp_sleep_periph_use_8m(glb_clk == LEDC_SLOW_CLK_RC_FAST);
 #endif
@@ -645,7 +646,7 @@ esp_err_t ledc_set_pin(int gpio_num, ledc_mode_t speed_mode, ledc_channel_t ledc
     LEDC_ARG_CHECK(ledc_channel < LEDC_CHANNEL_MAX, "ledc_channel");
     LEDC_ARG_CHECK(GPIO_IS_VALID_OUTPUT_GPIO(gpio_num), "gpio_num");
     LEDC_ARG_CHECK(speed_mode < LEDC_SPEED_MODE_MAX, "speed_mode");
-    gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[gpio_num], PIN_FUNC_GPIO);
+    gpio_func_sel(gpio_num, PIN_FUNC_GPIO);
     gpio_set_direction(gpio_num, GPIO_MODE_OUTPUT);
     esp_rom_gpio_connect_out_signal(gpio_num, ledc_periph_signal[speed_mode].sig_out0_idx + ledc_channel, 0, 0);
     return ESP_OK;
@@ -674,7 +675,7 @@ esp_err_t ledc_channel_config(const ledc_channel_config_t *ledc_conf)
     if (!new_speed_mode_ctx_created && !p_ledc_obj[speed_mode]) {
         return ESP_ERR_NO_MEM;
     }
-#if !(CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32H2 || CONFIG_IDF_TARGET_ESP32P4)
+#if !(CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32H2 || CONFIG_IDF_TARGET_ESP32P4 || CONFIG_IDF_TARGET_ESP32C5)
     // On such targets, the default ledc core(global) clock does not connect to any clock source
     // Set channel configurations and update bits before core clock is on could lead to error
     // Therefore, we should connect the core clock to a real clock source to make it on before any ledc register operation
@@ -709,7 +710,7 @@ esp_err_t ledc_channel_config(const ledc_channel_config_t *ledc_conf)
     ESP_LOGD(LEDC_TAG, "LEDC_PWM CHANNEL %"PRIu32"|GPIO %02u|Duty %04"PRIu32"|Time %"PRIu32,
              ledc_channel, gpio_num, duty, timer_select);
     /*set LEDC signal in gpio matrix*/
-    gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[gpio_num], PIN_FUNC_GPIO);
+    gpio_func_sel(gpio_num, PIN_FUNC_GPIO);
     gpio_set_level(gpio_num, output_invert);
     gpio_set_direction(gpio_num, GPIO_MODE_OUTPUT);
     esp_rom_gpio_connect_out_signal(gpio_num, ledc_periph_signal[speed_mode].sig_out0_idx + ledc_channel, output_invert, 0);
@@ -750,13 +751,13 @@ esp_err_t ledc_stop(ledc_mode_t speed_mode, ledc_channel_t channel, uint32_t idl
 }
 
 esp_err_t ledc_set_fade(ledc_mode_t speed_mode, ledc_channel_t channel, uint32_t duty, ledc_duty_direction_t fade_direction,
-                        uint32_t step_num, uint32_t duty_cyle_num, uint32_t duty_scale)
+                        uint32_t step_num, uint32_t duty_cycle_num, uint32_t duty_scale)
 {
     LEDC_ARG_CHECK(speed_mode < LEDC_SPEED_MODE_MAX, "speed_mode");
     LEDC_ARG_CHECK(channel < LEDC_CHANNEL_MAX, "channel");
     LEDC_ARG_CHECK(fade_direction < LEDC_DUTY_DIR_MAX, "fade_direction");
     LEDC_ARG_CHECK(step_num <= LEDC_LL_DUTY_NUM_MAX, "step_num");
-    LEDC_ARG_CHECK(duty_cyle_num <= LEDC_LL_DUTY_CYCLE_MAX, "duty_cycle_num");
+    LEDC_ARG_CHECK(duty_cycle_num <= LEDC_LL_DUTY_CYCLE_MAX, "duty_cycle_num");
     LEDC_ARG_CHECK(duty_scale <= LEDC_LL_DUTY_SCALE_MAX, "duty_scale");
     LEDC_CHECK(p_ledc_obj[speed_mode] != NULL, LEDC_NOT_INIT, ESP_ERR_INVALID_STATE);
     _ledc_fade_hw_acquire(speed_mode, channel);
@@ -767,7 +768,7 @@ esp_err_t ledc_set_fade(ledc_mode_t speed_mode, ledc_channel_t channel, uint32_t
                      duty,           //uint32_t duty_val,
                      fade_direction, //uint32_t increase,
                      step_num,       //uint32_t duty_num,
-                     duty_cyle_num,  //uint32_t duty_cycle,
+                     duty_cycle_num,  //uint32_t duty_cycle,
                      duty_scale      //uint32_t duty_scale
                     );
     portEXIT_CRITICAL(&ledc_spinlock);
@@ -1262,7 +1263,7 @@ esp_err_t ledc_fade_stop(ledc_mode_t speed_mode, ledc_channel_t channel)
     }
     portEXIT_CRITICAL(&ledc_spinlock);
     if (wait_for_idle) {
-        // Wait for ISR return, which gives the semaphore and switchs state to IDLE
+        // Wait for ISR return, which gives the semaphore and switches state to IDLE
         _ledc_fade_hw_acquire(speed_mode, channel);
         assert(fade->fsm == LEDC_FSM_IDLE);
     }

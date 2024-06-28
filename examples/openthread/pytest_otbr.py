@@ -1,8 +1,6 @@
 # SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Unlicense OR CC0-1.0
 # !/usr/bin/env python3
-
-
 import copy
 import os.path
 import re
@@ -20,7 +18,7 @@ from pytest_embedded_idf.dut import IdfDut
 # This file contains the test scripts for Thread:
 
 # Case 1: Thread network formation and attaching
-#         A Thread Border Router forms a Thread network, Thread devices attache to it, then test ping connection between them.
+#         A Thread Border Router forms a Thread network, Thread devices attach to it, then test ping connection between them.
 
 # Case 2: Bidirectional IPv6 connectivity
 #         Test IPv6 ping connection between Thread device and Linux Host (via Thread Border Router).
@@ -31,10 +29,10 @@ from pytest_embedded_idf.dut import IdfDut
 # Case 4: Multicast forwarding from Thread to Wi-Fi network
 #         Linux Host joins the multicast group, test group communication from Thread to Wi-Fi network.
 
-# Case 5: discover Serice published by Thread device
+# Case 5: discover Service published by Thread device
 #         Thread device publishes the service, Linux Host discovers the service on Wi-Fi network.
 
-# Case 6: discover Serice published by W-Fi device
+# Case 6: discover Service published by W-Fi device
 #         Linux Host device publishes the service on Wi-Fi network, Thread device discovers the service.
 
 # Case 7: ICMP communication via NAT64
@@ -581,17 +579,14 @@ def test_ot_sleepy_device(dut: Tuple[IdfDut, IdfDut]) -> None:
         ocf.init_thread(leader)
         time.sleep(3)
         leader_para = ocf.thread_parameter('leader', '', '12', '7766554433221100', False)
-        leader_para.setnetworkname('OpenThread-ESP')
-        leader_para.setpanid('0x1234')
-        leader_para.setextpanid('dead00beef00cafe')
-        leader_para.setnetworkkey('aabbccddeeff00112233445566778899')
-        leader_para.setpskc('104810e2315100afd6bc9215a6bfac53')
         ocf.joinThreadNetwork(leader, leader_para)
         ocf.wait(leader, 5)
-        output = sleepy_device.expect(pexpect.TIMEOUT, timeout=5)
-        assert not bool(fail_info.search(str(output)))
-        ocf.clean_buffer(sleepy_device)
-        sleepy_device.serial.hard_reset()
+        dataset = ocf.getDataset(leader)
+        ocf.execute_command(sleepy_device, 'mode -')
+        ocf.execute_command(sleepy_device, 'pollperiod 3000')
+        ocf.execute_command(sleepy_device, 'dataset set active ' + dataset)
+        ocf.execute_command(sleepy_device, 'ifconfig up')
+        ocf.execute_command(sleepy_device, 'thread start')
         info = sleepy_device.expect(r'(.+)detached -> child', timeout=20)[1].decode(errors='replace')
         assert not bool(fail_info.search(str(info)))
         info = sleepy_device.expect(r'(.+)PMU_SLEEP_PD_TOP: True', timeout=10)[1].decode(errors='replace')
@@ -733,7 +728,7 @@ def test_br_meshcop(Init_interface:bool, Init_avahi:bool, dut: Tuple[IdfDut, Idf
             assert 'hostname = [esp-ot-br.local]' in str(output_str)
             assert ('address = [' + ipv4_address + ']') in str(output_str)
             assert 'dn=DefaultDomain' in str(output_str)
-            assert 'tv=1.3.0' in str(output_str)
+            assert 'tv=1.4.0' in str(output_str)
             assert ('nn=' + networkname) in str(output_str)
             assert 'mn=BorderRouter' in str(output_str)
             assert 'vn=OpenThread' in str(output_str)

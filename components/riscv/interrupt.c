@@ -5,8 +5,12 @@
  */
 #include <stdint.h>
 #include <stddef.h>
+#include <assert.h>
 #include "soc/soc.h"
 #include "riscv/interrupt.h"
+#include "soc/interrupt_reg.h"
+#include "riscv/csr.h"
+#include "esp_attr.h"
 #include "riscv/rv_utils.h"
 
 

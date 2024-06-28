@@ -5,6 +5,8 @@
 
 (See the README.md file in the upper level 'examples' directory for more information about examples.)
 
+__WARNING:__ This example can potentially delete all data from your SD card (when formatting is enabled). Back up your data first before proceeding.
+
 This example demonstrates how to use an SD card with an ESP device. Example does the following steps:
 
 1. Use an "all-in-one" `esp_vfs_fat_sdmmc_mount` function to:
@@ -12,10 +14,11 @@ This example demonstrates how to use an SD card with an ESP device. Example does
     - probe and initialize an SD card,
     - mount FAT filesystem using FATFS library (and format card, if the filesystem cannot be mounted),
     - register FAT filesystem in VFS, enabling C standard library and POSIX functions to be used.
-2. Print information about the card, such as name, type, capacity, and maximum supported frequency.
-3. Create a file using `fopen` and write to it using `fprintf`.
-4. Rename the file. Before renaming, check if destination file already exists using `stat` function, and remove it using `unlink` function.
-5. Open renamed file for reading, read back the line, and print it to the terminal.
+1. Print information about the card, such as name, type, capacity, and maximum supported frequency.
+1. Create a file using `fopen` and write to it using `fprintf`.
+1. Rename the file. Before renaming, check if destination file already exists using `stat` function, and remove it using `unlink` function.
+1. Open renamed file for reading, read back the line, and print it to the terminal.
+1. __OPTIONAL:__ Format the SD card, check if the file doesn't exist anymore.
 
 This example supports SD (SDSC, SDHC, SDXC) cards and eMMC chips.
 
@@ -67,7 +70,7 @@ GPIO34        | D3          | not used in 1-line SD mode, but card's D3 pin must
 
 On ESP32-P4, Slot 1 of the SDMMC peripheral is connected to GPIO pins using GPIO matrix. This allows arbitrary GPIOs to be used to connect an SD card. In this example, GPIOs can be configured in two ways:
 
-1. Using menuconfig: Run `idf.py menuconfig` in the project directory and open "SD/MMC Example Configuration" menu.
+1. Using menuconfig: Run `idf.py menuconfig` in the project directory and open `SD/MMC Example Configuration` menu.
 2. In the source code: See the initialization of `sdmmc_slot_config_t slot_config` structure in the example code.
 
 The table below lists the default pin assignments.
@@ -80,6 +83,10 @@ GPIO39        | D0          | 10k pullup
 GPIO40        | D1          | not used in 1-line SD mode; 10k pullup in 4-line mode
 GPIO41        | D2          | not used in 1-line SD mode; 10k pullup in 4-line mode
 GPIO42        | D3          | not used in 1-line SD mode, but card's D3 pin must have a 10k pullup
+
+Default dedicated pins on ESP32-P4 are able to connect to an ultra high-speed SD card (UHS-I) which requires 1.8V switching (instead of the regular 3.3V). This means the user has to provide an external LDO power supply to use them, or to enable and configure an internal LDO via `idf.py menuconfig` -> `SD/MMC Example Configuration` -> `SD power supply comes from internal LDO IO`.
+
+When using different GPIO pins this is not required and `SD power supply comes from internal LDO IO` setting can be disabled.
 
 ### 4-line and 1-line SD modes
 

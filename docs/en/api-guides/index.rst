@@ -14,6 +14,7 @@ API Guides
    :SOC_SUPPORT_COEXISTENCE: coexist
    c
    cplusplus
+   code-quality/index
    core_dump
    current-consumption-measurement-modules
    :SOC_RTC_MEM_SUPPORTED: deep-sleep-stub
@@ -34,7 +35,8 @@ API Guides
    partition-tables
    performance/index
    reproducible-builds
-   :SOC_WIFI_SUPPORTED or SOC_BT_SUPPORTED or SOC_IEEE802154_SUPPORTED: RF_calibration
+   :(SOC_WIFI_SUPPORTED or SOC_BT_SUPPORTED or SOC_IEEE802154_SUPPORTED) and not esp32c5 and not esp32c61: RF_calibration
+   stdio
    thread-local-storage
    tools/index
    unit-tests
@@ -44,3 +46,4 @@ API Guides
    :SOC_WIFI_SUPPORTED: wifi
    :SOC_WIFI_SUPPORTED: wifi-security
    low-power-mode
+   :SOC_WIFI_SUPPORTED or SOC_BT_SUPPORTED or SOC_IEEE802154_SUPPORTED: phy

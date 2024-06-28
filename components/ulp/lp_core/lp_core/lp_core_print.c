@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <stdarg.h>
+#include "sdkconfig.h"
 #include "ulp_lp_core_uart.h"
+
+#if !CONFIG_ULP_ROM_PRINT_ENABLE
 
 #define LP_UART_PORT_NUM LP_UART_NUM_0
 #define BINARY_SUPPORT 1
@@ -271,3 +274,5 @@ int lp_core_printf(const char* format, ...)
 
     return ret;
 }
+
+#endif /* !CONFIG_ULP_ROM_PRINT_ENABLE */

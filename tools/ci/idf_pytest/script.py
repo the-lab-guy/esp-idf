@@ -50,6 +50,7 @@ def get_pytest_cases(
     paths: t.Union[str, t.List[str]],
     target: str = CollectMode.ALL,
     *,
+    config_name: t.Optional[str] = None,
     marker_expr: t.Optional[str] = None,
     filter_expr: t.Optional[str] = None,
     apps: t.Optional[t.List[App]] = None,
@@ -67,6 +68,7 @@ def get_pytest_cases(
 
     :param paths: paths to search for pytest scripts
     :param target: target or keywords to get test cases for, detailed above
+    :param config_name: sdkconfig name
     :param marker_expr: pytest marker expression, `-m`
     :param filter_expr: pytest filter expression, `-k`
     :param apps: built app list, skip the tests required by apps not in the list
@@ -81,7 +83,7 @@ def get_pytest_cases(
         return cases
 
     def _get_pytest_cases(_target: str, _single_target_duplicate_mode: bool = False) -> t.List[PytestCase]:
-        collector = IdfPytestEmbedded(_target, single_target_duplicate_mode=_single_target_duplicate_mode, apps=apps)
+        collector = IdfPytestEmbedded(_target, config_name=config_name, single_target_duplicate_mode=_single_target_duplicate_mode, apps=apps)
 
         with io.StringIO() as buf:
             with redirect_stdout(buf):
@@ -213,8 +215,7 @@ def get_all_apps(
         elif app.build_status != BuildStatus.SKIPPED:
             if case := pytest_app_path_tuple_dict.get((app_path, app.target, app.config_name)):
                 test_related_apps.add(app)
-                # should be built if
-                app.build_status = BuildStatus.SHOULD_BE_BUILT
+                # build or not should be decided by the build stage
                 app.preserve = True
                 logging.debug('Found test-related app: %s - required by %s', app, case.path)
             else:

@@ -32,7 +32,7 @@ Hardware
 
         Some PSRAM chips are 1.8 V devices and some are 3.3 V. Consult the datasheet for your PSRAM chip and {IDF_TARGET_NAME} device to find out the working voltages.
 
-        By default, the PSRAM is powered up by the on-chip LDO2. You can use :ref:`CONFIG_ESP_VDD_PSRAM_LDO_ID` to switch the LDO ID accordingly. Set this value to -1 to use an external power supply, which means the on-chip LDO will not be used. By default, the PSRAM connected to LDO is set to the correct voltage based on the Espressif module used. You can still use :ref:`CONFIG_ESP_VDD_PSRAM_LDO_VOLTAGE_MV` to select the LDO output voltage if you are not using an Espressif module. When using an external power supply, this option does not exist.
+        By default, the PSRAM is powered up by the on-chip LDO2. You can use :ref:`CONFIG_ESP_LDO_CHAN_PSRAM_DOMAIN` to switch the LDO channel accordingly. Set this value to -1 to use an external power supply, which means the on-chip LDO will not be used. By default, the PSRAM connected to LDO is set to the correct voltage based on the Espressif module used. You can still use :ref:`CONFIG_ESP_LDO_VOLTAGE_PSRAM_DOMAIN` to select the LDO output voltage if you are not using an Espressif module. When using an external power supply, this option does not exist.
 
 .. note::
 
@@ -68,7 +68,7 @@ Select this option by choosing ``Integrate RAM into memory map`` from :ref:`CONF
 
 This is the most basic option for external RAM integration. Most likely, you will need another, more advanced option.
 
-During the ESP-IDF startup, external RAM is mapped into the data virtual address space. The address space is dynamically allocated. The length will be the mininum length between the PSRAM size and the available data virtual address space size.
+During the ESP-IDF startup, external RAM is mapped into the data virtual address space. The address space is dynamically allocated. The length will be the minimum length between the PSRAM size and the available data virtual address space size.
 
 Applications can manually place data in external memory by creating pointers to this region. So if an application uses external memory, it is responsible for all management of the external RAM: coordinating buffer usage, preventing corruption, etc.
 
@@ -100,8 +100,8 @@ This allows any application to use the external RAM without having to rewrite th
 
 An additional configuration item, :ref:`CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL`, can be used to set the size threshold when a single allocation should prefer external memory:
 
-- When allocating a size less than the threshold, the allocator will try internal memory first.
-- When allocating a size equal to or larger than the threshold, the allocator will try external memory first.
+- When allocating a size less than or equal to the threshold, the allocator will try internal memory first.
+- When allocating a size larger than the threshold, the allocator will try external memory first.
 
 If a suitable block of preferred internal/external memory is not available, the allocator will try the other type of memory.
 
@@ -137,35 +137,55 @@ Remaining external RAM can also be added to the capability heap allocator using 
 
 .. only:: SOC_SPIRAM_XIP_SUPPORTED
 
-    .. _external_ram_config_instructions:
+    .. only:: esp32s2 or esp32s3
 
-    Move Instructions in Flash to PSRAM
-    -----------------------------------
+        .. _external_ram_config_instructions:
 
-    The :ref:`CONFIG_SPIRAM_FETCH_INSTRUCTIONS` option allows the flash ``.text`` sections (use for instructions) to be placed in PSRAM.
+        Move Instructions in Flash to PSRAM
+        -----------------------------------
 
-    By enabling the :ref:`CONFIG_SPIRAM_FETCH_INSTRUCTIONS` option
+        The :ref:`CONFIG_SPIRAM_FETCH_INSTRUCTIONS` option allows the flash ``.text`` sections (for instructions) to be placed in PSRAM.
 
-    - Instructions from the ``.text`` sections of flash are moved into PSRAM on system startup.
+        By enabling the :ref:`CONFIG_SPIRAM_FETCH_INSTRUCTIONS` option,
 
-    - The corresponding virtual memory range of those instructions will also be re-mapped to PSRAM.
+        - Instructions from the ``.text`` sections of flash are moved into PSRAM on system startup.
 
-    If :ref:`CONFIG_SPIRAM_RODATA` is also enabled, the cache will not be disabled during an SPI1 flash operation. You do not need to make sure ISRs, ISR callbacks and involved data are placed in internal RAM, thus internal RAM usage can be optimized.
+        - The corresponding virtual memory range of those instructions will also be re-mapped to PSRAM.
 
-    .. _external_ram_config_rodata:
+        .. _external_ram_config_rodata:
 
-    Move Read-Only Data in Flash to PSRAM
-    ---------------------------------------
+        Move Read-Only Data in Flash to PSRAM
+        ---------------------------------------
 
-    The :ref:`CONFIG_SPIRAM_RODATA` option allows the flash ``.rodata`` sections (use for read only data) to be placed in PSRAM.
+        The :ref:`CONFIG_SPIRAM_RODATA` option allows the flash ``.rodata`` sections (for read only data) to be placed in PSRAM.
 
-    By enabling the :ref:`CONFIG_SPIRAM_RODATA` option
+        By enabling the :ref:`CONFIG_SPIRAM_RODATA` option,
 
-    - Instructions from the ``.rodata`` sections of flash are moved into PSRAM on system startup.
+        - Instructions from the ``.rodata`` sections of flash are moved into PSRAM on system startup.
 
-    - The corresponding virtual memory range of those rodata will also be re-mapped to PSRAM.
+        - The corresponding virtual memory range of those rodata will also be re-mapped to PSRAM.
 
-    If :ref:`CONFIG_SPIRAM_FETCH_INSTRUCTIONS` is also enabled, the cache will not be disabled during an SPI1 flash operation. You do not need to make sure ISRs, ISR callbacks and involved data are placed in internal RAM, thus internal RAM usage can be optimized.
+
+        Execute In Place (XiP) from PSRAM
+        ------------------------------------
+
+        The :ref:`CONFIG_SPIRAM_XIP_FROM_PSRAM` is a helper option for you to select both the :ref:`CONFIG_SPIRAM_FETCH_INSTRUCTIONS` and :ref:`CONFIG_SPIRAM_RODATA`.
+
+        The benefits of XiP from PSRAM is:
+
+        - PSRAM access speed is faster than Flash access. So the performance is better.
+
+        - The cache will not be disabled during an SPI1 flash operation, thus optimizing the code execution performance during SPI1 flash operations. For ISRs, ISR callbacks and data which might be accessed during this period, you do not need to place them in internal RAM, thus internal RAM usage can be optimized. This feature is useful for high throughput peripheral involved applications to improve the performance during SPI1 flash operations.
+
+    .. only:: esp32p4
+
+        Execute In Place (XiP) from PSRAM
+        ------------------------------------
+
+        The :ref:`CONFIG_SPIRAM_XIP_FROM_PSRAM` option enables the executable in place (XiP) from PSRAM feature. With this option sections that are normally placed in flash ,``.text`` (for instructions) and ``.rodata`` (for read only data), will be loaded in PSRAM.
+
+        With this option enabled, the cache will not be disabled during an SPI1 flash operation, so code that requires executing during an SPI1 Flash operation does not have to be placed in internal RAM. Because P4 Flash and PSRAM are using two separate SPI buses, moving Flash content to PSRAM will actually increase the load of the PSRAM MSPI bus, so the access speed is relatively slower. The exact impact on performance will be very dependent on your apps usage of PSRAM, and we suggest doing performance profiling to determine if enabling this option will significantly impact your app's performance.
+
 
 Restrictions
 ============

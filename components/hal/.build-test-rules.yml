@@ -1,3 +1,7 @@
+components/hal/test_apps/crypto:
+  depends_components:
+    - efuse
+
 components/hal/test_apps/hal_i2c:
   disable:
     - if: SOC_I2C_SUPPORTED != 1

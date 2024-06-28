@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -20,7 +20,7 @@ extern "C" {
 #endif
 
 
-#define SOC_IRAM0_CACHE_ADDRESS_LOW                  0x41000000
+#define SOC_IRAM0_CACHE_ADDRESS_LOW                  0x42000000
 #define SOC_IRAM0_CACHE_ADDRESS_HIGH                 (SOC_IRAM0_CACHE_ADDRESS_LOW + ((SOC_MMU_PAGE_SIZE) * SOC_MMU_ENTRY_NUM))
 
 #define SOC_DRAM0_CACHE_ADDRESS_LOW                  SOC_IRAM0_CACHE_ADDRESS_LOW                //I/D share the same vaddr range
@@ -41,9 +41,10 @@ extern "C" {
 #define SOC_ADDRESS_IN_DRAM0_CACHE(vaddr)            SOC_ADDRESS_IN_BUS(SOC_DRAM0_CACHE, vaddr)
 
 #define SOC_MMU_ACCESS_FLASH            0
-#define SOC_MMU_VALID                   BIT(9)
-#define SOC_MMU_SENSITIVE               BIT(10)
-#define SOC_MMU_INVALID_MASK            BIT(9)
+#define SOC_MMU_ACCESS_SPIRAM           BIT(9)
+#define SOC_MMU_VALID                   BIT(10)
+#define SOC_MMU_SENSITIVE               BIT(11)
+#define SOC_MMU_INVALID_MASK            BIT(10)
 #define SOC_MMU_INVALID                 0
 
 /**
@@ -51,15 +52,15 @@ extern "C" {
  * valid bit + value bits
  * valid bit is BIT(9), so value bits are 0x1ff
  */
-#define SOC_MMU_VALID_VAL_MASK 0x1ff
+#define SOC_MMU_VALID_VAL_MASK (SOC_MMU_ACCESS_SPIRAM-1)
 /**
  * Max MMU available paddr page num.
  * `SOC_MMU_MAX_PADDR_PAGE_NUM * SOC_MMU_PAGE_SIZE` means the max paddr address supported by the MMU. e.g.:
  * 256 * 64KB, means MMU can support 16MB paddr at most
  */
-#define SOC_MMU_MAX_PADDR_PAGE_NUM    256
+#define SOC_MMU_MAX_PADDR_PAGE_NUM    512
 //MMU entry num
-#define SOC_MMU_ENTRY_NUM   256
+#define SOC_MMU_ENTRY_NUM   512
 
 /**
  * This is the mask used for mapping. e.g.:
@@ -67,39 +68,19 @@ extern "C" {
  */
 #define SOC_MMU_VADDR_MASK                  ((SOC_MMU_PAGE_SIZE) * SOC_MMU_ENTRY_NUM - 1)
 
-#define SOC_MMU_DBUS_VADDR_BASE               0x41000000
-#define SOC_MMU_IBUS_VADDR_BASE               0x41000000
+#define SOC_MMU_DBUS_VADDR_BASE               0x42000000
+#define SOC_MMU_IBUS_VADDR_BASE               0x42000000
 
 /*------------------------------------------------------------------------------
  * MMU Linear Address
  *----------------------------------------------------------------------------*/
-#if (SOC_MMU_PAGE_SIZE == 0x10000)
 /**
  * - 64KB MMU page size: the last 0xFFFF, which is the offset
- * - 128 MMU entries, needs 0x7F to hold it.
+ * - 512 MMU entries, needs 0x1FF to hold it.
  *
- * Therefore, 0x7F,FFFF
+ * Therefore, 0x1FF,FFFF
  */
-#define SOC_MMU_LINEAR_ADDR_MASK              0x7FFFFF
-
-#elif (SOC_MMU_PAGE_SIZE == 0x8000)
-/**
- * - 32KB MMU page size: the last 0x7FFF, which is the offset
- * - 128 MMU entries, needs 0x7F to hold it.
- *
- * Therefore, 0x3F,FFFF
- */
-#define SOC_MMU_LINEAR_ADDR_MASK              0x3FFFFF
-
-#elif (SOC_MMU_PAGE_SIZE == 0x4000)
-/**
- * - 16KB MMU page size: the last 0x3FFF, which is the offset
- * - 128 MMU entries, needs 0x7F to hold it.
- *
- * Therefore, 0x1F,FFFF
- */
-#define SOC_MMU_LINEAR_ADDR_MASK              0x1FFFFF
-#endif  //SOC_MMU_PAGE_SIZE
+#define SOC_MMU_LINEAR_ADDR_MASK              0x1FFFFFF
 
 /**
  * - If high linear address isn't 0, this means MMU can recognize these addresses

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -26,7 +26,6 @@
 #include "soc/pcr_struct.h"
 #include "soc/clk_tree_defs.h"
 #include "hal/gpio_types.h"
-#include "hal/misc.h"
 #include "hal/assert.h"
 
 #ifdef __cplusplus
@@ -59,7 +58,7 @@ static inline void gpio_ll_get_io_config(gpio_dev_t *hw, uint32_t gpio_num,
                                          uint32_t *fun_sel, uint32_t *sig_out, bool *slp_sel)
 {
     uint32_t bit_mask = 1 << gpio_num;
-    uint32_t iomux_reg_val = REG_READ(GPIO_PIN_MUX_REG[gpio_num]);
+    uint32_t iomux_reg_val = REG_READ(IO_MUX_GPIO0_REG + (gpio_num * 4));
     *pu = (iomux_reg_val & FUN_PU_M) >> FUN_PU_S;
     *pd = (iomux_reg_val & FUN_PD_M) >> FUN_PD_S;
     *ie = (iomux_reg_val & FUN_IE_M) >> FUN_IE_S;
@@ -233,6 +232,7 @@ static inline void gpio_ll_input_disable(gpio_dev_t *hw, uint32_t gpio_num)
   * @param hw Peripheral GPIO hardware instance address.
   * @param gpio_num GPIO number
   */
+__attribute__((always_inline))
 static inline void gpio_ll_input_enable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     PIN_INPUT_ENABLE(IO_MUX_GPIO0_REG + (gpio_num * 4));
@@ -352,7 +352,7 @@ static inline int gpio_ll_get_level(gpio_dev_t *hw, uint32_t gpio_num)
  */
 static inline void gpio_ll_wakeup_enable(gpio_dev_t *hw, uint32_t gpio_num)
 {
-    hw->pin[gpio_num].wakeup_enable = 0x1;
+    hw->pin[gpio_num].wakeup_enable = 1;
 }
 
 /**
@@ -396,6 +396,7 @@ static inline void gpio_ll_get_drive_capability(gpio_dev_t *hw, uint32_t gpio_nu
   * @param hw Peripheral GPIO hardware instance address.
   * @param gpio_num GPIO number, only support output GPIOs
   */
+__attribute__((always_inline))
 static inline void gpio_ll_hold_en(gpio_dev_t *hw, uint32_t gpio_num)
 {
     LP_AON.gpio_hold0.gpio_hold0 |= GPIO_HOLD_MASK[gpio_num];
@@ -407,6 +408,7 @@ static inline void gpio_ll_hold_en(gpio_dev_t *hw, uint32_t gpio_num)
   * @param hw Peripheral GPIO hardware instance address.
   * @param gpio_num GPIO number, only support output GPIOs
   */
+__attribute__((always_inline))
 static inline void gpio_ll_hold_dis(gpio_dev_t *hw, uint32_t gpio_num)
 {
     LP_AON.gpio_hold0.gpio_hold0 &= ~GPIO_HOLD_MASK[gpio_num];
@@ -466,7 +468,8 @@ static inline void gpio_ll_iomux_func_sel(uint32_t pin_name, uint32_t func)
  * @param  val    Control value
  * @param  shift  write mask shift of control value
  */
-static inline __attribute__((always_inline)) void gpio_ll_set_pin_ctrl(uint32_t val, uint32_t bmap, uint32_t shift)
+__attribute__((always_inline))
+static inline void gpio_ll_set_pin_ctrl(uint32_t val, uint32_t bmap, uint32_t shift)
 {
     SET_PERI_REG_BITS(PIN_CTRL, bmap, val, shift);
 }

@@ -37,7 +37,7 @@
     睡眠模式下的 Wi-Fi 和 Bluetooth 功能
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    在 Light-sleep 和 Deep-sleep 模式下，无线外设会被断电。因此，在进入这两种睡眠模式前，应用程序必须调用恰当的函数（:cpp:func:`esp_bluedroid_disable`、:cpp:func:`esp_bt_controller_disable` 或 :cpp:func:`esp_wifi_stop`）来禁用 Wi-Fi 和 Bluetooth。在 Light-sleep 或 Deep-sleep 模式下，即使不调用这些函数也无法连接 Wi-Fi 和 Bluetooth。
+    在 Light-sleep 和 Deep-sleep 模式下，无线外设会被断电。因此，在进入这两种睡眠模式前，应用程序必须调用恰当的函数（:cpp:func:`nimble_port_stop`、:cpp:func:`nimble_port_deinit`、:cpp:func:`esp_bluedroid_disable`、:cpp:func:`esp_bluedroid_deinit`、:cpp:func:`esp_bt_controller_disable`、:cpp:func:`esp_bt_controller_deinit` 或 :cpp:func:`esp_wifi_stop`）来禁用 Wi-Fi 和 Bluetooth。在 Light-sleep 或 Deep-sleep 模式下，即使不调用这些函数也无法连接 Wi-Fi 和 Bluetooth。
 
     如需保持 Wi-Fi 和 Bluetooth 连接，请启用 Wi-Fi 和 Bluetooth Modem-sleep 模式和自动 Light-sleep 模式（请参阅 :doc:`电源管理 API <power_management>`）。在这两种模式下，Wi-Fi 和 Bluetooth 驱动程序发出请求时，系统将自动从睡眠中被唤醒，从而保持连接。
 
@@ -254,7 +254,13 @@ RTC 控制器中内嵌定时器，可用于在预定义的时间到达后唤醒�
 
     .. only:: SOC_PM_SUPPORT_EXT1_WAKEUP_MODE_PER_PIN
 
-        当前的 RTC 控制器也包含更强大的逻辑，允许配置的 IO 同时使用不同的唤醒电平。这可以通过:cpp:func:`esp_sleep_enable_ext1_wakeup_io` 函数来进行配置。
+        当前的 RTC 控制器也包含更强大的逻辑，允许配置的 IO 同时使用不同的唤醒电平。这可以通过 :cpp:func:`esp_sleep_enable_ext1_wakeup_io` 函数来进行配置。
+
+    .. only:: not SOC_PM_SUPPORT_EXT1_WAKEUP_MODE_PER_PIN
+
+       .. note::
+
+           由于硬件限制，当我们将多个 IO 用于 EXT1 唤醒，此时不允许将这些 IO 的唤醒模式配置成不同的电平，在 :cpp:func:`esp_sleep_enable_ext1_wakeup_io` 已有相应的内部检查机制。
 
     .. warning::
 
@@ -319,6 +325,8 @@ UART 唤醒（仅适用于 Light-sleep 模式）
 当 {IDF_TARGET_NAME} 从外部设备接收 UART 输入时，通常需要在输入数据可用时唤醒芯片。UART 外设支持在 RX 管脚上观测到一定数量的上升沿时，将芯片从 Light-sleep 模式中唤醒。调用 :cpp:func:`uart_set_wakeup_threshold` 函数可设置被观测上升沿的数量。请注意，触发唤醒的字符（及该字符前的所有字符）在唤醒后不会被 UART 接收，因此在发送数据之前，外部设备通常需要首先向 {IDF_TARGET_NAME} 额外发送一个字符以触发唤醒。
 
 可调用 :cpp:func:`esp_sleep_enable_uart_wakeup` 函数来启用此唤醒源。
+
+使用 UART 唤醒之后，在芯片 Active 模式下需要让 UART 接受一些数据用来清零内部的唤醒指示信号。不然的话，下一次 UART 唤醒的触发将只需要比配置的阈值少两个上升沿的数量。
 
     .. only:: esp32c6 or esp32h2
 

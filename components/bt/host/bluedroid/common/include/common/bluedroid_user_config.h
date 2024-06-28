@@ -95,6 +95,15 @@
 #define UC_BT_CLASSIC_BQB_ENABLED           FALSE
 #endif
 
+//Set Encryption Key Size(BT)
+#ifdef CONFIG_BT_ENC_KEY_SIZE_CTRL_STD
+#define UC_BT_ENC_KEY_SIZE_CTRL_MODE   1
+#elif CONFIG_BT_ENC_KEY_SIZE_CTRL_VSC
+#define UC_BT_ENC_KEY_SIZE_CTRL_MODE   2
+#else
+#define UC_BT_ENC_KEY_SIZE_CTRL_MODE   0
+#endif
+
 //BLE
 #ifdef CONFIG_BT_BLE_ENABLED
 #define UC_BT_BLE_ENABLED                   CONFIG_BT_BLE_ENABLED
@@ -209,7 +218,13 @@
 #define UC_BT_SMP_MAX_BONDS 8
 #endif
 
-//Device Nane Maximum Length
+#ifdef CONFIG_BT_BLE_SMP_ID_RESET_ENABLE
+#define UC_BT_BLE_SMP_ID_RESET_ENABLE CONFIG_BT_BLE_SMP_ID_RESET_ENABLE
+#else
+#define UC_BT_BLE_SMP_ID_RESET_ENABLE FALSE
+#endif
+
+//Device Name Maximum Length
 #ifdef CONFIG_BT_MAX_DEVICE_NAME_LEN
 #define UC_MAX_LOC_BD_NAME_LEN  CONFIG_BT_MAX_DEVICE_NAME_LEN
 #else

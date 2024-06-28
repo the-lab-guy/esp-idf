@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -14,6 +14,7 @@
 #include "sdkconfig.h"
 #include "driver/gpio.h"
 #include "hal/gpio_hal.h"
+#include "esp_private/gpio.h"
 #include "esp_err.h"
 #include "esp_attr.h"
 #include "unity.h"
@@ -71,9 +72,9 @@
 static void i2s_test_io_config(int mode)
 {
     // Connect internal signals using IO matrix.
-    gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[MASTER_BCK_IO], PIN_FUNC_GPIO);
-    gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[MASTER_WS_IO], PIN_FUNC_GPIO);
-    gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[DATA_OUT_IO], PIN_FUNC_GPIO);
+    gpio_func_sel(MASTER_BCK_IO, PIN_FUNC_GPIO);
+    gpio_func_sel(MASTER_WS_IO, PIN_FUNC_GPIO);
+    gpio_func_sel(DATA_OUT_IO, PIN_FUNC_GPIO);
 
     gpio_set_direction(MASTER_BCK_IO, GPIO_MODE_INPUT_OUTPUT);
     gpio_set_direction(MASTER_WS_IO, GPIO_MODE_INPUT_OUTPUT);
@@ -190,7 +191,21 @@ TEST_CASE("I2S_basic_channel_allocation_reconfig_deleting_test", "[i2s]")
     TEST_ESP_OK(i2s_channel_enable(tx_handle));
     TEST_ESP_OK(i2s_channel_disable(tx_handle));
     TEST_ESP_OK(i2s_del_channel(tx_handle));
-    TEST_ASSERT(i2s_channel_get_info(tx_handle, &chan_info) == ESP_ERR_NOT_FOUND);
+    TEST_ESP_ERR(ESP_ERR_NOT_FOUND, i2s_channel_get_info(tx_handle, &chan_info));
+
+    /* Exhaust test */
+    std_cfg.gpio_cfg.mclk = -1;
+    i2s_chan_handle_t tx_ex[SOC_I2S_NUM] = {};
+    for (int i = 0; i < SOC_I2S_NUM; i++) {
+        TEST_ESP_OK(i2s_new_channel(&chan_cfg, &tx_ex[i], NULL));
+        TEST_ESP_OK(i2s_channel_init_std_mode(tx_ex[i], &std_cfg));
+        TEST_ESP_OK(i2s_channel_enable(tx_ex[i]));
+    }
+    TEST_ESP_ERR(ESP_ERR_NOT_FOUND, i2s_new_channel(&chan_cfg, &tx_handle, NULL));
+    for (int i = 0; i < SOC_I2S_NUM; i++) {
+        TEST_ESP_OK(i2s_channel_disable(tx_ex[i]));
+        TEST_ESP_OK(i2s_del_channel(tx_ex[i]));
+    }
 
     /* Duplex channel basic test */
     chan_cfg.id = I2S_NUM_0;    // Specify port id to I2S port 0
@@ -208,7 +223,7 @@ TEST_CASE("I2S_basic_channel_allocation_reconfig_deleting_test", "[i2s]")
 
     /* Hold the occupation */
     TEST_ESP_OK(i2s_platform_acquire_occupation(I2S_NUM_0, "test_i2s"));
-    TEST_ASSERT(i2s_new_channel(&chan_cfg, &tx_handle, &rx_handle) == ESP_ERR_NOT_FOUND);
+    TEST_ESP_ERR(ESP_ERR_NOT_FOUND, i2s_new_channel(&chan_cfg, &tx_handle, &rx_handle));
     TEST_ESP_OK(i2s_platform_release_occupation(I2S_NUM_0));
     TEST_ESP_OK(i2s_new_channel(&chan_cfg, &tx_handle, &rx_handle));
     TEST_ESP_OK(i2s_del_channel(tx_handle));
@@ -349,7 +364,7 @@ TEST_CASE("I2S_thread_concurrent_safety_test", "[i2s]")
     xTaskCreate(i2s_read_task, "i2s_read_task", 4096, rx_handle, 5, NULL);
     /* writing task to keep writing */
     xTaskCreate(i2s_write_task, "i2s_write_task", 4096, tx_handle, 5, NULL);
-    /* reconfig taks to reconfigurate the settings every 200 ms */
+    /* reconfig task to reconfigure the settings every 200 ms */
     xTaskCreate(i2s_reconfig_task, "i2s_reconfig_task", 4096, tx_handle, 6, NULL);
 
     /* Wait 3 seconds to see if any failures occur */
@@ -745,7 +760,7 @@ static void i2s_test_common_sample_rate(i2s_chan_handle_t rx_chan, i2s_std_clk_c
     TEST_ESP_OK(pcnt_unit_enable(pcnt_unit));
 
     // Reconfig GPIO signal
-    gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[MASTER_WS_IO], PIN_FUNC_GPIO);
+    gpio_func_sel(MASTER_WS_IO, PIN_FUNC_GPIO);
     gpio_set_direction(MASTER_WS_IO, GPIO_MODE_INPUT_OUTPUT);
     esp_rom_gpio_connect_out_signal(MASTER_WS_IO, i2s_periph_signal[0].m_rx_ws_sig, 0, 0);
     esp_rom_gpio_connect_in_signal(MASTER_WS_IO, pcnt_periph_signals.groups[0].units[0].channels[0].pulse_sig, 0);
@@ -906,4 +921,81 @@ finish:
     free(data);
     // Test failed if package lost within 96000
     TEST_ASSERT(i == test_num);
+}
+
+#define TEST_I2S_BUF_DATA_OFFSET   100
+
+static IRAM_ATTR bool i2s_tx_on_sent_callback(i2s_chan_handle_t handle, i2s_event_data_t *event, void *user_ctx)
+{
+    uint32_t *dma_buf = (uint32_t *)(event->dma_buf);
+    size_t len = event->size / sizeof(uint32_t);
+    for (int i = 0; i < len; i++) {
+        dma_buf[i] = i + TEST_I2S_BUF_DATA_OFFSET;
+    }
+    return false;
+}
+
+static IRAM_ATTR bool i2s_rx_on_recv_callback(i2s_chan_handle_t handle, i2s_event_data_t *event, void *user_ctx)
+{
+    bool *received = (bool *)user_ctx;
+    uint32_t *dma_buf = (uint32_t *)(event->dma_buf);
+    size_t len = event->size / sizeof(uint32_t);
+    for (int i = 0; i < len; i++) {
+        if (dma_buf[i] == TEST_I2S_BUF_DATA_OFFSET) {
+            for (int j = 0; i < len && dma_buf[i] == (j + TEST_I2S_BUF_DATA_OFFSET); i++, j++);
+            if (i == len) {
+                *received = true;
+                break;
+            }
+        }
+    }
+    return false;
+}
+
+TEST_CASE("I2S_asynchronous_read_write", "[i2s]")
+{
+    i2s_chan_handle_t tx_handle;
+    i2s_chan_handle_t rx_handle;
+
+    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
+    // Only clear the data before callback, so that won't clear the user given data in the callback
+    chan_cfg.auto_clear_before_cb = true;
+    i2s_std_config_t std_cfg = {
+        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_RATE),
+        .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(SAMPLE_BITS, I2S_SLOT_MODE_STEREO),
+        .gpio_cfg = I2S_TEST_MASTER_DEFAULT_PIN,
+    };
+    std_cfg.gpio_cfg.din = std_cfg.gpio_cfg.dout;  // GPIO loopback
+
+    TEST_ESP_OK(i2s_new_channel(&chan_cfg, &tx_handle, &rx_handle));
+    TEST_ESP_OK(i2s_channel_init_std_mode(tx_handle, &std_cfg));
+    TEST_ESP_OK(i2s_channel_init_std_mode(rx_handle, &std_cfg));
+
+    i2s_event_callbacks_t cbs = {
+        .on_sent = i2s_tx_on_sent_callback,
+        .on_recv = i2s_rx_on_recv_callback,
+    };
+    bool received = false;
+    TEST_ESP_OK(i2s_channel_register_event_callback(rx_handle, &cbs, &received));
+    TEST_ESP_OK(i2s_channel_register_event_callback(tx_handle, &cbs, NULL));
+
+    TEST_ESP_OK(i2s_channel_enable(rx_handle));
+    TEST_ESP_OK(i2s_channel_enable(tx_handle));
+
+    /* Wait until receive correct data */
+    uint32_t timeout_ms = 3000;
+    while (!received) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+        timeout_ms -= 10;
+        if (timeout_ms <= 0) {
+            break;
+        }
+    }
+
+    TEST_ESP_OK(i2s_channel_disable(tx_handle));
+    TEST_ESP_OK(i2s_channel_disable(rx_handle));
+    TEST_ESP_OK(i2s_del_channel(tx_handle));
+    TEST_ESP_OK(i2s_del_channel(rx_handle));
+
+    TEST_ASSERT(received);
 }

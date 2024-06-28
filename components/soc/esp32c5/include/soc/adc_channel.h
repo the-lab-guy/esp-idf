@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
+// TODO: [ESP32-C5] IDF-8701 Check the channel
 #define ADC1_GPIO0_CHANNEL      0
 #define ADC1_CHANNEL_0_GPIO_NUM 0
 

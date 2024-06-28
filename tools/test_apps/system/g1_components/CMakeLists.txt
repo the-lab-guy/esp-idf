@@ -40,8 +40,10 @@ set(extra_components_which_shouldnt_be_included
     esp_app_format
     # esp_bootloader_format is dependency of bootloader_support, app_update
     esp_bootloader_format
-    # [refactor-todo]: efuse is a dependency of esp_hw_support, esp_system.
-    #   Figure out if these components can exist without a dependency on efuse.
+    # [refactor-todo]:
+    #   Figure out if the esp_hw_support component can exist without a dependency on efuse.
+    #   efuse is used by the ADC calibration functions in esp_hw_support/adc_share_hw_ctrl.c,
+    #   it could use the efuse hal (if virtual efuse mode is not used for tests).
     #   If not, see if esp_hw_support can provide minimal efuse component replacement in G1 build.
     efuse
     # esp_pm is pulled in by freertos, can be made a weak dependency
@@ -62,8 +64,7 @@ set(extra_components_which_shouldnt_be_included
     # esp_partition is a new component for separated IDF partition APIs. Added due to its involvement in the spi_flash
     #   code. To be possibly removed (?)
     esp_partition
-    # pthread is required by esp_system (for initialization only, can be made a weak dependency)
-    #   and cxx. See also [refactor-todo] about cxx, can it work without pthread?
+    # pthread is required by cxx. See [refactor-todo] about cxx, can it work without pthread?
     pthread
 )
 

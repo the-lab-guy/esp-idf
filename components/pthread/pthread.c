@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "sdkconfig.h"
 #include <time.h>
 #include <errno.h>
 #include <pthread.h>
@@ -15,6 +16,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
+#include "esp_private/startup_internal.h"
 #if CONFIG_SPIRAM
 #include "esp_private/freertos_idf_additions_priv.h"
 #endif
@@ -23,6 +25,7 @@
 
 #include "pthread_internal.h"
 #include "esp_pthread.h"
+#include "esp_compiler.h"
 
 #include "esp_log.h"
 const static char *TAG = "pthread";
@@ -60,15 +63,19 @@ typedef struct {
 static SemaphoreHandle_t s_threads_mux  = NULL;
 portMUX_TYPE pthread_lazy_init_lock  = portMUX_INITIALIZER_UNLOCKED; // Used for mutexes and cond vars and rwlocks
 static SLIST_HEAD(esp_thread_list_head, esp_pthread_entry) s_threads_list
-                                        = SLIST_HEAD_INITIALIZER(s_threads_list);
+    = SLIST_HEAD_INITIALIZER(s_threads_list);
 static pthread_key_t s_pthread_cfg_key;
-
 
 static int pthread_mutex_lock_internal(esp_pthread_mutex_t *mux, TickType_t tmo);
 
 static void esp_pthread_cfg_key_destructor(void *value)
 {
     free(value);
+}
+
+ESP_SYSTEM_INIT_FN(init_pthread, CORE, BIT(0), 120)
+{
+    return esp_pthread_init();
 }
 
 esp_err_t esp_pthread_init(void)
@@ -159,7 +166,10 @@ esp_err_t esp_pthread_set_cfg(const esp_pthread_cfg_t *cfg)
     *p = *cfg;
     p->stack_alloc_caps = heap_caps;
     pthread_setspecific(s_pthread_cfg_key, p);
+
+    ESP_COMPILER_DIAGNOSTIC_PUSH_IGNORE("-Wanalyzer-malloc-leak") // ignore leak of 'p'
     return 0;
+    ESP_COMPILER_DIAGNOSTIC_POP("-Wanalyzer-malloc-leak")
 }
 
 esp_err_t esp_pthread_get_cfg(esp_pthread_cfg_t *p)
@@ -232,16 +242,16 @@ static UBaseType_t coreID_to_AffinityMask(BaseType_t core_id)
 #endif
 
 static BaseType_t pthread_create_freertos_task_with_caps(TaskFunction_t pxTaskCode,
-                                                        const char * const pcName,
-                                                        const configSTACK_DEPTH_TYPE usStackDepth,
-                                                        void * const pvParameters,
-                                                        UBaseType_t uxPriority,
-                                                        BaseType_t core_id,
-                                                        UBaseType_t uxStackMemoryCaps,
-                                                        TaskHandle_t * const pxCreatedTask)
+                                                         const char * const pcName,
+                                                         const configSTACK_DEPTH_TYPE usStackDepth,
+                                                         void * const pvParameters,
+                                                         UBaseType_t uxPriority,
+                                                         BaseType_t core_id,
+                                                         UBaseType_t uxStackMemoryCaps,
+                                                         TaskHandle_t * const pxCreatedTask)
 {
 #if CONFIG_SPIRAM
-    #if CONFIG_FREERTOS_SMP
+#if CONFIG_FREERTOS_SMP
     return prvTaskCreateDynamicAffinitySetWithCaps(pxTaskCode,
                                                    pcName,
                                                    usStackDepth,
@@ -250,7 +260,7 @@ static BaseType_t pthread_create_freertos_task_with_caps(TaskFunction_t pxTaskCo
                                                    coreID_to_AffinityMask(core_id),
                                                    uxStackMemoryCaps,
                                                    pxCreatedTask);
-    #else
+#else
     return prvTaskCreateDynamicPinnedToCoreWithCaps(pxTaskCode,
                                                     pcName,
                                                     usStackDepth,
@@ -259,7 +269,7 @@ static BaseType_t pthread_create_freertos_task_with_caps(TaskFunction_t pxTaskCo
                                                     core_id,
                                                     uxStackMemoryCaps,
                                                     pxCreatedTask);
-    #endif
+#endif
 #else
     return xTaskCreatePinnedToCore(pxTaskCode,
                                    pcName,
@@ -272,7 +282,7 @@ static BaseType_t pthread_create_freertos_task_with_caps(TaskFunction_t pxTaskCo
 }
 
 int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
-                   void *(*start_routine) (void *), void *arg)
+                   void *(*start_routine)(void *), void *arg)
 {
     TaskHandle_t xHandle = NULL;
 
@@ -319,7 +329,7 @@ int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
             task_name = pthread_cfg->thread_name;
         }
 
-        if (pthread_cfg->pin_to_core >= 0 && pthread_cfg->pin_to_core < portNUM_PROCESSORS) {
+        if (pthread_cfg->pin_to_core >= 0 && pthread_cfg->pin_to_core < CONFIG_FREERTOS_NUMBER_OF_CORES) {
             core_id = pthread_cfg->pin_to_core;
         }
 
@@ -353,13 +363,13 @@ int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     pthread->task_arg = task_arg;
 
     BaseType_t res = pthread_create_freertos_task_with_caps(&pthread_task_func,
-                                             task_name,
-                                             stack_size,
-                                             task_arg,
-                                             prio,
-                                             core_id,
-                                             stack_alloc_caps,
-                                             &xHandle);
+                                                            task_name,
+                                                            stack_size,
+                                                            task_arg,
+                                                            prio,
+                                                            core_id,
+                                                            stack_alloc_caps,
+                                                            &xHandle);
 
     if (res != pdPASS) {
         ESP_LOGE(TAG, "Failed to create task!");
@@ -542,7 +552,7 @@ int pthread_cancel(pthread_t thread)
     return ENOSYS;
 }
 
-int sched_yield( void )
+int sched_yield(void)
 {
     vTaskDelay(0);
     return 0;
@@ -587,8 +597,8 @@ int pthread_once(pthread_once_t *once_control, void (*init_routine)(void))
 static int mutexattr_check(const pthread_mutexattr_t *attr)
 {
     if (attr->type != PTHREAD_MUTEX_NORMAL &&
-        attr->type != PTHREAD_MUTEX_RECURSIVE &&
-        attr->type != PTHREAD_MUTEX_ERRORCHECK) {
+            attr->type != PTHREAD_MUTEX_RECURSIVE &&
+            attr->type != PTHREAD_MUTEX_ERRORCHECK) {
         return EINVAL;
     }
     return 0;
@@ -679,7 +689,7 @@ static int pthread_mutex_lock_internal(esp_pthread_mutex_t *mux, TickType_t tmo)
     }
 
     if ((mux->type == PTHREAD_MUTEX_ERRORCHECK) &&
-        (xSemaphoreGetMutexHolder(mux->sem) == xTaskGetCurrentTaskHandle())) {
+            (xSemaphoreGetMutexHolder(mux->sem) == xTaskGetCurrentTaskHandle())) {
         return EDEADLK;
     }
 
@@ -733,8 +743,8 @@ int pthread_mutex_timedlock(pthread_mutex_t *mutex, const struct timespec *timeo
 
     struct timespec currtime;
     clock_gettime(CLOCK_REALTIME, &currtime);
-    TickType_t tmo = ((timeout->tv_sec - currtime.tv_sec)*1000 +
-                     (timeout->tv_nsec - currtime.tv_nsec)/1000000)/portTICK_PERIOD_MS;
+    TickType_t tmo = ((timeout->tv_sec - currtime.tv_sec) * 1000 +
+                      (timeout->tv_nsec - currtime.tv_nsec) / 1000000) / portTICK_PERIOD_MS;
 
     res = pthread_mutex_lock_internal((esp_pthread_mutex_t *)*mutex, tmo);
     if (res == EBUSY) {
@@ -768,8 +778,8 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex)
     }
 
     if (((mux->type == PTHREAD_MUTEX_RECURSIVE) ||
-        (mux->type == PTHREAD_MUTEX_ERRORCHECK)) &&
-        (xSemaphoreGetMutexHolder(mux->sem) != xTaskGetCurrentTaskHandle())) {
+            (mux->type == PTHREAD_MUTEX_ERRORCHECK)) &&
+            (xSemaphoreGetMutexHolder(mux->sem) != xTaskGetCurrentTaskHandle())) {
         return EPERM;
     }
 

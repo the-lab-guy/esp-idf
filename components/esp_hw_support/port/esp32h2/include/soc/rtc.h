@@ -246,6 +246,8 @@ bool rtc_clk_8m_enabled(void);
 
 /**
  * @brief Enable or disable LP_PLL_CLK
+ * Note that to be able to use LP_PLL clock, besides turn on the power for LP_PLL, also needs to turn on the power for
+ * the LP_PLL clock source (either XTAL32K or RC32K).
  * @param enable true to enable, false to disable
  */
 void rtc_clk_lp_pll_enable(bool enable);
@@ -408,15 +410,6 @@ uint64_t rtc_time_slowclk_to_us(uint64_t rtc_cycles, uint32_t period);
  * @return current value of RTC counter
  */
 uint64_t rtc_time_get(void);
-
-/**
- * @brief Busy loop until next RTC_SLOW_CLK cycle
- *
- * This function returns not earlier than the next RTC_SLOW_CLK clock cycle.
- * In some cases (e.g. when RTC_SLOW_CLK cycle is very close), it may return
- * one RTC_SLOW_CLK cycle later.
- */
-void rtc_clk_wait_for_slow_cycle(void);
 
 /**
  * @brief Enable the rtc digital 8M clock

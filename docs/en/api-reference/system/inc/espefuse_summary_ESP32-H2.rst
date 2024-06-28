@@ -1,12 +1,10 @@
 .. code-block:: none
 
-    espefuse.py -p PORT summary
+   idf.py efuse-summary
 
-    espefuse.py v4.6-dev
-    Connecting....
-    Detecting chip type... ESP32-H2
+    Executing action: efuse-summary
+    (...)
 
-    === Run "summary" command ===
     EFUSE_NAME (Block) Description  = [Meaningful Value] [Readable/Writeable] (Hex Value)
     ----------------------------------------------------------------------------------------
     Config fuses:
@@ -76,7 +74,7 @@
                                                        e_download is disabled or enabled. 1: disabled. 0:
                                                         enabled
     DIS_DOWNLOAD_MANUAL_ENCRYPT (BLOCK0)               Represents whether flash encrypt function is disab = False R/W (0b0)
-                                                       led or enabled(except in SPI boot mode). 1: disabl
+                                                       led or enabled(except in SPI boot mode). 1: disable
                                                        ed. 0: enabled
     SPI_BOOT_CRYPT_CNT (BLOCK0)                        Enables flash encryption when 1 or 3 bits are set  = Disable R/W (0b000)
                                                        and disables otherwise
@@ -107,7 +105,7 @@
     SECURE_VERSION (BLOCK0)                            Represents the version used by ESP-IDF anti-rollba = 0 R/W (0x0000)
                                                        ck feature
     SECURE_BOOT_DISABLE_FAST_WAKE (BLOCK0)             Represents whether FAST VERIFY ON WAKE is disabled = False R/W (0b0)
-                                                        or enabled when Secure Boot is enabled. 1: disabl
+                                                        or enabled when Secure Boot is enabled. 1: disable
                                                        ed. 0: enabled
     BLOCK_KEY0 (BLOCK4)
       Purpose: USER
@@ -160,12 +158,13 @@ To get a dump for all eFuse registers.
 
 .. code-block:: none
 
-    espefuse.py -p PORT dump
+    idf.py efuse-dump
 
-    espefuse.py dump
+    Executing action: efuse-dump
+    Running espefuse.py in directory <project-directory>
+    Executing "espefuse.py dump --chip esp32h2"...
     espefuse.py v4.6-dev
     Connecting....
-    Detecting chip type... ESP32-H2
     BLOCK0          (                ) [0 ] read_regs: 00000000 00000000 00000000 00000000 00000000 00000000
     MAC_SPI_8M_0    (BLOCK1          ) [1 ] read_regs: f9f72ca2 fffe6055 00000000 00000000 00000000 00000000
     BLOCK_SYS_DATA  (BLOCK2          ) [2 ] read_regs: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000

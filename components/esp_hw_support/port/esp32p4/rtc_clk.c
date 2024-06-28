@@ -13,18 +13,22 @@
 #include "esp32p4/rom/rtc.h"
 #include "soc/rtc.h"
 #include "esp_private/rtc_clk.h"
+#include "esp_attr.h"
 #include "esp_hw_log.h"
 #include "esp_rom_sys.h"
 #include "hal/clk_tree_ll.h"
 #include "hal/regi2c_ctrl_ll.h"
 #include "hal/gpio_ll.h"
 #include "soc/io_mux_reg.h"
-#include "esp_private/sleep_event.h" // TODO: IDF-7528
+#include "esp_private/sleep_event.h"
 
 static const char *TAG = "rtc_clk";
 
 // CPLL frequency option, in 360/400MHz. Zero if CPLL is not enabled.
 static int s_cur_cpll_freq = 0;
+
+// MPLL frequency option, 400MHz. Zero if MPLL is not enabled.
+static DRAM_ATTR uint32_t s_cur_mpll_freq = 0;
 
 void rtc_clk_32k_enable(bool enable)
 {
@@ -234,17 +238,16 @@ static void rtc_clk_cpu_freq_to_cpll_mhz(int cpu_freq_mhz, hal_utils_clk_div_t *
         abort();
     }
     // Update bit does not control CPU clock sel mux. Therefore, there may be a middle state during the switch (CPU rises)
-    // We will switch cpu clock source first, and then set the desired dividers.
-    // It is likely that the hardware will automatically adjust dividers to meet mem_clk, apb_clk freq constraints when
-    // cpu clock source is set.
-    // However, the desired dividers will be written into registers anyways afterwards.
-    // This ensures the final confguration is the desired one.
-    clk_ll_cpu_set_src(SOC_CPU_CLK_SRC_PLL);
+    // Since this is upscaling, we need to configure the frequency division coefficient before switching the clock source.
+    // Otherwise, an intermediate state will occur, in the intermediate state, the frequency of APB/MEM does not meet the
+    // timing requirements. If there are periperals/CPU access that depend on these two clocks at this moment, some exception
+    // might occur.
     clk_ll_cpu_set_divider(div->integer, div->numerator, div->denominator);
     clk_ll_mem_set_divider(mem_divider);
     clk_ll_sys_set_divider(sys_divider);
     clk_ll_apb_set_divider(apb_divider);
     clk_ll_bus_update();
+    clk_ll_cpu_set_src(SOC_CPU_CLK_SRC_PLL);
     esp_rom_set_cpu_ticks_per_us(cpu_freq_mhz);
 }
 
@@ -301,6 +304,10 @@ bool rtc_clk_cpu_freq_mhz_to_config(uint32_t freq_mhz, rtc_cpu_freq_config_t *ou
     return true;
 }
 
+__attribute__((weak)) void rtc_clk_set_cpu_switch_to_pll(int event_id)
+{
+}
+
 void rtc_clk_cpu_freq_set_config(const rtc_cpu_freq_config_t *config)
 {
     soc_cpu_clk_src_t old_cpu_clk_src = clk_ll_cpu_get_src();
@@ -311,6 +318,7 @@ void rtc_clk_cpu_freq_set_config(const rtc_cpu_freq_config_t *config)
         }
     } else if (config->source == SOC_CPU_CLK_SRC_CPLL) {
         if (old_cpu_clk_src != SOC_CPU_CLK_SRC_CPLL) {
+            rtc_clk_set_cpu_switch_to_pll(SLEEP_EVENT_HW_PLL_EN_START);
             rtc_clk_cpll_enable();
         }
         if (config->source_freq_mhz != s_cur_cpll_freq) {
@@ -320,6 +328,7 @@ void rtc_clk_cpu_freq_set_config(const rtc_cpu_freq_config_t *config)
             rtc_clk_cpll_configure(xtal_freq_mhz, config->source_freq_mhz);
         }
         rtc_clk_cpu_freq_to_cpll_mhz(config->freq_mhz, (hal_utils_clk_div_t *)&config->div);
+        rtc_clk_set_cpu_switch_to_pll(SLEEP_EVENT_HW_PLL_EN_STOP);
     } else if (config->source == SOC_CPU_CLK_SRC_RC_FAST) {
         rtc_clk_cpu_freq_to_8m();
         if (old_cpu_clk_src == SOC_CPU_CLK_SRC_CPLL) {
@@ -478,6 +487,7 @@ bool rtc_dig_8m_enabled(void)
 void rtc_clk_mpll_disable(void)
 {
     clk_ll_mpll_disable();
+    s_cur_mpll_freq = 0;
 }
 
 void rtc_clk_mpll_enable(void)
@@ -495,4 +505,10 @@ void rtc_clk_mpll_configure(uint32_t xtal_freq, uint32_t mpll_freq)
     while(!regi2c_ctrl_ll_mpll_calibration_is_done());
     /* MPLL calibration stop */
     regi2c_ctrl_ll_mpll_calibration_stop();
+    s_cur_mpll_freq = mpll_freq;
+}
+
+uint32_t rtc_clk_mpll_get_freq(void)
+{
+    return s_cur_mpll_freq;
 }

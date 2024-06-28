@@ -31,8 +31,7 @@
 #include "nvs_flash.h"
 #include "nvs.h"
 
-#if !TEMPORARY_DISABLED_FOR_TARGETS(ESP32P4) // TODO IDF-7529
-
+#if SOC_DEEP_SLEEP_SUPPORTED
 #if SOC_PMU_SUPPORTED
 #include "esp_private/esp_pmu.h"
 #else
@@ -60,13 +59,13 @@ static void do_deep_sleep_from_app_cpu(void)
 
     xTaskCreatePinnedToCore(&deep_sleep_task, "ds", 2048, NULL, 5, NULL, 1);
 
-#ifdef CONFIG_FREERTOS_SMP
+#if ( ( CONFIG_FREERTOS_SMP ) && ( !CONFIG_FREERTOS_UNICORE ) )
     //Note: Scheduler suspension behavior changed in FreeRTOS SMP
     vTaskPreemptionDisable(NULL);
 #else
     // keep running some non-IRAM code
     vTaskSuspendAll();
-#endif // CONFIG_FREERTOS_SMP
+#endif // #if ( ( CONFIG_FREERTOS_SMP ) && ( !CONFIG_FREERTOS_UNICORE ) )
 
     while (true) {
         ;
@@ -132,11 +131,11 @@ TEST_CASE("light sleep stress test", "[deepsleep]")
     SemaphoreHandle_t done = xSemaphoreCreateCounting(2, 0);
     esp_sleep_enable_timer_wakeup(1000);
     xTaskCreatePinnedToCore(&test_light_sleep, "ls0", 4096, done, UNITY_FREERTOS_PRIORITY + 1, NULL, 0);
-#if portNUM_PROCESSORS == 2
+#if CONFIG_FREERTOS_NUMBER_OF_CORES == 2
     xTaskCreatePinnedToCore(&test_light_sleep, "ls1", 4096, done, UNITY_FREERTOS_PRIORITY + 1, NULL, 1);
 #endif
     xSemaphoreTake(done, portMAX_DELAY);
-#if portNUM_PROCESSORS == 2
+#if CONFIG_FREERTOS_NUMBER_OF_CORES == 2
     xSemaphoreTake(done, portMAX_DELAY);
 #endif
     vSemaphoreDelete(done);
@@ -158,11 +157,11 @@ TEST_CASE("light sleep stress test with periodic esp_timer", "[deepsleep]")
     TEST_ESP_OK(esp_timer_create(&config, &timer));
     esp_timer_start_periodic(timer, 500);
     xTaskCreatePinnedToCore(&test_light_sleep, "ls1", 4096, done, UNITY_FREERTOS_PRIORITY + 1, NULL, 0);
-#if portNUM_PROCESSORS == 2
+#if CONFIG_FREERTOS_NUMBER_OF_CORES == 2
     xTaskCreatePinnedToCore(&test_light_sleep, "ls1", 4096, done, UNITY_FREERTOS_PRIORITY + 1, NULL, 1);
 #endif
     xSemaphoreTake(done, portMAX_DELAY);
-#if portNUM_PROCESSORS == 2
+#if CONFIG_FREERTOS_NUMBER_OF_CORES == 2
     xSemaphoreTake(done, portMAX_DELAY);
 #endif
     vSemaphoreDelete(done);
@@ -288,7 +287,7 @@ TEST_CASE_MULTIPLE_STAGES("enter deep sleep after abort", "[deepsleep][reset=abo
                           check_abort_reset_and_sleep,
                           check_sleep_reset);
 
-#if SOC_RTC_FAST_MEM_SUPPORTED
+#if ESP_ROM_SUPPORT_DEEP_SLEEP_WAKEUP_STUB
 static RTC_DATA_ATTR uint32_t s_wake_stub_var;
 
 static RTC_IRAM_ATTR void wake_stub(void)
@@ -317,7 +316,6 @@ static void check_wake_stub(void)
 TEST_CASE_MULTIPLE_STAGES("can set sleep wake stub", "[deepsleep][reset=DEEPSLEEP_RESET]",
                           prepare_wake_stub,
                           check_wake_stub);
-#endif // SOC_RTC_FAST_MEM_SUPPORTED
 
 #if CONFIG_ESP_SYSTEM_ALLOW_RTC_FAST_MEM_AS_HEAP
 
@@ -329,7 +327,7 @@ TEST_CASE_MULTIPLE_STAGES("can set sleep wake stub", "[deepsleep][reset=DEEPSLEE
    trigger a CRC calculation (done in hardware) for the entire RTC FAST memory
    before going to deep sleep and if it's invalid then the stub is not
    run. Also, while the CRC is being calculated the RTC FAST memory is not
-   accesible by the CPU (reads all zeros).
+   accessible by the CPU (reads all zeros).
 */
 
 static void increment_rtc_memory_cb(void *arg)
@@ -382,6 +380,7 @@ TEST_CASE_MULTIPLE_STAGES("can set sleep wake stub from stack in RTC RAM", "[dee
                           check_wake_stub);
 
 #endif // CONFIG_ESP_SYSTEM_ALLOW_RTC_FAST_MEM_AS_HEAP
+#endif // ESP_ROM_SUPPORT_DEEP_SLEEP_WAKEUP_STUB
 
 #if SOC_RTCIO_INPUT_OUTPUT_SUPPORTED
 
@@ -404,7 +403,7 @@ __attribute__((unused)) static uint32_t get_cause(void)
     return wakeup_cause;
 }
 
-#if !TEMPORARY_DISABLED_FOR_TARGETS(ESP32S2, ESP32S3, ESP32C6, ESP32H2)
+#if !TEMPORARY_DISABLED_FOR_TARGETS(ESP32S2, ESP32S3) && SOC_PM_SUPPORT_EXT0_WAKEUP
 // Fails on S2 IDF-2903
 
 // This test case verifies deactivation of trigger for wake up sources
@@ -488,7 +487,7 @@ static void trigger_deepsleep(void)
     struct timeval start;
 
     // Use NVS instead of RTC mem to store the start time of deep sleep
-    // Beacuse not all esp chips support RTC mem(such as esp32c2)
+    // Because not all esp chips support RTC mem(such as esp32c2)
     // Initialize NVS
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -575,4 +574,4 @@ static void check_time_deepsleep(void)
 
 TEST_CASE_MULTIPLE_STAGES("check a time after wakeup from deep sleep", "[deepsleep][reset=DEEPSLEEP_RESET]", trigger_deepsleep, check_time_deepsleep);
 
-#endif //!TEMPORARY_DISABLED_FOR_TARGETS(ESP32P4)
+#endif // SOC_DEEP_SLEEP_SUPPORTED

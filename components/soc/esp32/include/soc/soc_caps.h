@@ -70,6 +70,7 @@
 #define SOC_SDMMC_HOST_SUPPORTED    1
 #define SOC_BT_SUPPORTED            1
 #define SOC_PCNT_SUPPORTED          1
+#define SOC_PHY_SUPPORTED           1
 #define SOC_WIFI_SUPPORTED          1
 #define SOC_SDIO_SLAVE_SUPPORTED    1
 #define SOC_TWAI_SUPPORTED          1
@@ -100,6 +101,10 @@
 #define SOC_WDT_SUPPORTED           1
 #define SOC_SPI_FLASH_SUPPORTED     1
 #define SOC_RNG_SUPPORTED           1
+#define SOC_LIGHT_SLEEP_SUPPORTED   1
+#define SOC_DEEP_SLEEP_SUPPORTED    1
+#define SOC_LP_PERIPH_SHARE_INTERRUPT   1   // LP peripherals sharing the same interrupt source
+#define SOC_PM_SUPPORTED            1
 
 #if SOC_CAPS_ECO_VER < 200
 #define SOC_DPORT_WORKAROUND                   1
@@ -109,7 +114,7 @@
 /*-------------------------- XTAL CAPS ---------------------------------------*/
 #define SOC_XTAL_SUPPORT_26M            1
 #define SOC_XTAL_SUPPORT_40M            1
-#define SOC_XTAL_SUPPORT_AUTO_DETECT    1
+#define SOC_XTAL_SUPPORT_AUTO_DETECT    1   // Measure XTAL freq with an internal RC clock
 
 /*-------------------------- ADC CAPS ----------------------------------------*/
 /*!< SAR ADC Module*/
@@ -184,12 +189,14 @@
 // digital I/O pad powered by VDD3P3_CPU or VDD_SPI(GPIO_NUM: 1, 3, 5, 6, 7, 8, 9, 10, 11, 16, 17, 18, 19, 21, 22, 23)
 #define SOC_GPIO_VALID_DIGITAL_IO_PAD_MASK 0xEF0FEAULL
 
-// The Clock Out singnal is binding to the pin's IO_MUX function
+// The Clock Out signal is binding to the pin's IO_MUX function
 #define SOC_GPIO_CLOCKOUT_BY_IO_MUX    (1)
+#define SOC_GPIO_CLOCKOUT_CHANNEL_NUM  (3)
 
 /*-------------------------- I2C CAPS ----------------------------------------*/
 // ESP32 has 2 I2C
-#define SOC_I2C_NUM             (2)
+#define SOC_I2C_NUM                (2U)
+#define SOC_HP_I2C_NUM             (2)
 
 #define SOC_I2C_FIFO_LEN        (32) /*!< I2C hardware FIFO depth */
 #define SOC_I2C_CMD_REG_NUM     (16) /*!< Number of I2C command registers */
@@ -319,7 +326,7 @@
 #define SOC_TOUCH_SENSOR_VERSION            (1U)     /*!<Hardware version of touch sensor */
 #define SOC_TOUCH_SENSOR_NUM                (10)
 
-#define SOC_TOUCH_SAMPLER_NUM               (1U)    /*!< The sampler number in total, each sampler can be used to sample on one frequency */
+#define SOC_TOUCH_SAMPLE_CFG_NUM               (1U)    /*!< The sample configuration number in total, each sampler can be used to sample on one frequency */
 
 /*-------------------------- TWAI CAPS ---------------------------------------*/
 #define SOC_TWAI_CONTROLLER_NUM         1UL
@@ -435,6 +442,7 @@
 #define SOC_BT_CLASSIC_SUPPORTED        (1)    /*!< Support Bluetooth Classic hardware */
 #define SOC_BLE_DEVICE_PRIVACY_SUPPORTED (0)   /*!< Support BLE device privacy mode */
 #define SOC_BLUFI_SUPPORTED             (1)    /*!< Support BLUFI */
+#define SOC_BT_H2C_ENC_KEY_CTRL_ENH_VSC_SUPPORTED (1) /*!< Support Bluetooth Classic encryption key size configuration through vendor-specific HCI command */
 
 /*-------------------------- ULP CAPS ----------------------------------------*/
 #define SOC_ULP_HAS_ADC                     (1)    /* ADC can be accessed from ULP */
